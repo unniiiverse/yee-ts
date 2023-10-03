@@ -14,5 +14,6 @@ export interface IYeeDevice {
   rgb?: number,
   hue?: number,
   sat?: number,
-  name?: string
+  name?: string,
+  fw?: number
 }
