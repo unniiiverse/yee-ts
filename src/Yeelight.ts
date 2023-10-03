@@ -1,11 +1,12 @@
 import { IYeeDevice } from './interfaces.js';
 import { Discovery } from './Discovery.js';
 import { Storage } from './Storage.js';
+import { Device } from './Device.js';
 
 
 export class Yeelight {
   private discovery = new Discovery();
-  protected storage = new Storage();
+  private storage = new Storage();
 
   async discover(timeout = 5000): Promise<IYeeDevice[] | null> {
     return new Promise((resolve, reject) => {
@@ -31,6 +32,10 @@ export class Yeelight {
 
   getDevices(): IYeeDevice[] | null {
     return this.storage.getAll();
+  }
+
+  createDevice(id: string): Device {
+    return new Device(id, this.storage);
   }
 }
 
