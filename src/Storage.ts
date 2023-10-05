@@ -3,6 +3,10 @@ import { IYeeDevice } from './interfaces.js';
 export class Storage {
   private storage: IYeeDevice[] = [];
 
+  constructor(storage?: IYeeDevice[]) {
+    this.storage = storage || [];
+  }
+
   parseBuffer(msg: Buffer): IYeeDevice[] | null {
     const data = msg.toString().split('\r\n');
 
@@ -19,8 +23,8 @@ export class Storage {
 
     // Assign payload
     data.forEach(el => {
-      const notRequiredProps = ['ct', 'rgb', 'hue', 'sat', 'name'];
-      const props = ['id', 'ip', 'port', 'model', 'power', 'bright', 'color_mode', ...notRequiredProps];
+      const notRequiredProps = ['ct', 'rgb', 'hue', 'sat', 'name', 'port', 'model', 'power', 'bright', 'color_mode'];
+      const props = ['id', 'ip', ...notRequiredProps];
 
       // Match new object
       if (el.match(/^HTTP/gi)) {

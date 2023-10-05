@@ -25,9 +25,8 @@ export class Discovery extends EventEmitter {
     this.socket.on('error', e => this.emit('error', e));
 
     try {
-      this.socket.bind(0, '0.0.0.0', () => this._onBoud());
+      this.socket.bind(43210, '0.0.0.0', () => this._onBoud());
     } catch (e) {
-      this.emit('error', e);
       this._onBoud();
     }
   }

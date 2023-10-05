@@ -34,8 +34,8 @@ export class Yeelight {
     return this.storage.getAll();
   }
 
-  createDevice(id: string): Device {
-    return new Device(id, this.storage);
+  createDevice(id: string, storage?: Storage): Device {
+    return new Device(id, storage || this.storage);
   }
 }
 

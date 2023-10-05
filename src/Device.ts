@@ -25,30 +25,60 @@ export class Device {
     this.device = device;
   }
 
-  getProp(prop: TYeeDeviceProps) {
-    return this.device[prop];
+  getDevice(): IYeeDevice {
+    return this.device;
   }
 
-  async toggle(params?: any[], props?: ISendCommandProps) {
-    params = params || [];
-    return await this._sendCommand({ method: 'toggle', params }, props);
+  async getProp(prop: TYeeDeviceProps[], useLocal?: boolean, props?: ISendCommandProps) {
+    return useLocal ? this.device[prop[0]] : await this._sendCommand({ method: 'get_prop', params: prop }, props);
   }
+
+  async setRgb(r: number, g: number, b: number, params?: any[], props?: ISendCommandProps) {
+    const rgb = (r * 65536) + (g * 256) + b;
+
+    params = params || [];
+    params.unshift(rgb);
+    this.device.rgb = rgb;
+
+    return await this._sendCommand({ method: 'set_rgb', params }, props);
+  }
+
+  // hsv
 
   async turnOn(params?: any[], props?: ISendCommandProps) {
     params = params || [];
     params?.unshift('on');
+    this.device.power = true;
+
     return await this._sendCommand({ method: 'set_power', params }, props);
   }
 
   async turnOff(params?: any[], props?: ISendCommandProps) {
     params = params || [];
     params?.unshift('off');
+    this.device.power = false;
+
     return await this._sendCommand({ method: 'set_power', params }, props);
+  }
+
+  async toggle(params?: any[], props?: ISendCommandProps) {
+    params = params || [];
+    if (this.device.power === true) {
+      this.device.power = false;
+    } else if (this.device.power === false) {
+      this.device.power = true;
+    } else {
+      console.log('[yee-ts]: power mode for toggle is not provided.');
+    }
+
+    return await this._sendCommand({ method: 'toggle', params }, props);
   }
 
   async setBrightness(brightness: number, params?: any[], props?: ISendCommandProps) {
     params = params || [];
     params?.unshift(brightness);
+    this.device.bright = brightness;
+
     return await this._sendCommand({ method: 'set_bright', params }, props);
   }
 
@@ -57,19 +87,18 @@ export class Device {
       // const uid = +String(Math.random() * 100).replace('.', '');
       const json = JSON.stringify({ id: 2, ...command });
 
-      console.log(json);
       const socket = new net.Socket();
       const resolveSocket = new net.Socket();
       const defaultTimeout = 5000;
       const timeout = props?.timeout || defaultTimeout;
 
       socket.connect({
-        port: this.device.port,
+        port: this.device.port || 55443,
         host: this.device.ip
       });
 
       resolveSocket.connect({
-        port: this.device.port,
+        port: this.device.port || 55443,
         host: this.device.ip
       });
 
@@ -77,10 +106,14 @@ export class Device {
 
       socket.on('ready', () => {
         socket.write(`${json}\r\n`, () => {
-          console.log('writed');
+          console.log('[yee-ts]: writed');
           socket.destroy();
           resolve();
         });
+      });
+
+      socket.on('data', data => {
+        console.log(data.toString());
       });
 
       socket.on('error', reject);
