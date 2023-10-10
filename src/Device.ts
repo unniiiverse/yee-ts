@@ -66,6 +66,10 @@ export class Device {
     return this.device[prop];
   }
 
+  async sendCommand(command: { method: string, params: any }, props?: ISendCommandProps) {
+    return await this._sendCommand(command, props);
+  }
+
   async setRgb(r: number, g: number, b: number, params?: any[], props?: ISendCommandProps) {
     const rgb = (r * 65536) + (g * 256) + b;
 
