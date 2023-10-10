@@ -19,7 +19,7 @@ export class Device {
 
     const device = this.storage.getOne(id);
     if (!device) {
-      throw new TypeError(`Device with id ${id} is not found.`);
+      throw new TypeError(`[yee-ts]: Device with id ${id} is not found.`);
     }
 
     this.device = device;
@@ -30,27 +30,26 @@ export class Device {
       const uid = +String(Math.random() * 100).replace('.', '');
       const json = JSON.stringify({ id: uid, ...command });
 
-      const socket = new net.Socket();
-      const listenSocket = new net.Socket();
+      const socket = net.createConnection({
+        port: 55443,
+        host: this.device.ip,
+        family: 4,
+        noDelay: true,
+      });
+
       const defaultTimeout = 5000;
       const timeout = props?.timeout || defaultTimeout;
-
-      socket.connect(this.device.port || 55443, this.device.ip);
-      listenSocket.connect(this.device.port || 55443, this.device.ip);
 
       socket.setTimeout(timeout);
 
       socket.on('ready', () => {
-        socket.write(`${json}\r\n`, () => {
+        const buffer = Buffer.from(`${json}\r\n`);
+        socket.write(buffer, () => {
           console.log('[yee-ts <DEV>]: writed');
           socket.destroy();
           resolve();
         });
       });
-
-      // listenSocket.on('data', data => {
-      //   console.log(JSON.parse(data.toString()));
-      // });
 
       socket.on('error', reject);
       socket.on('timeout', () => { console.error(`[yee-ts]: Socket timeouted ${timeout}ms.`); reject(`[yee-ts]: Socket timeouted ${timeout}ms.`); });
