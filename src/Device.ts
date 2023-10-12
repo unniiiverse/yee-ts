@@ -2,20 +2,19 @@
 
 import Storage from './Storage.js';
 import { IYeeDevice, TYeeDeviceProps } from './interfaces.js';
-import net from 'net';
+import net from 'node:net';
 
 interface ISendCommandProps {
   timeout?: 1500
 }
 
 export class Device {
-  private id: string;
+  private cmdI = 0;
   private device: IYeeDevice;
   private storage: Storage;
 
   constructor(id: string, storage: Storage) {
     this.storage = storage;
-    this.id = id;
 
     const device = this.storage.getOne(id);
     if (!device) {
@@ -23,31 +22,46 @@ export class Device {
     }
 
     this.device = device;
+    this.device.id = id;
+
+    const listenSocket = net.createConnection({
+      port: 55443,
+      host: this.device.ip,
+      family: 4,
+      noDelay: true
+    });
+
+    listenSocket.on('data', data => {
+      // console.log(`[yee-ts <DEV>]: ${data.toString()}`);
+    });
   }
 
   private async _sendCommand(command: { method: string, params: any }, props?: ISendCommandProps): Promise<void> {
     return new Promise((resolve, reject) => {
-      const uid = +String(Math.random() * 100).replace('.', '');
-      const json = JSON.stringify({ id: uid, ...command });
-
-      const socket = net.createConnection({
-        port: 55443,
-        host: this.device.ip,
-        family: 4,
-        noDelay: true,
-      });
+      const payload = `${JSON.stringify({ id: this.cmdI, ...command })}\r\n`;
 
       const defaultTimeout = 5000;
       const timeout = props?.timeout || defaultTimeout;
 
-      socket.setTimeout(timeout);
+      const socket = new net.Socket({
+        writable: true
+      });
+
+      socket.connect(55443, this.device.ip);
 
       socket.on('ready', () => {
-        const buffer = Buffer.from(`${json}\r\n`);
-        socket.write(buffer, () => {
-          console.log('[yee-ts <DEV>]: writed');
-          socket.destroy();
-          resolve();
+        socket.write(payload, e => {
+          if (e) return reject(e);
+
+          socket.write(' ', e => {
+            if (e) return reject(e);
+
+            this.cmdI++;
+            // console.log(`[yee-ts <DEV>]: writed payload ${payload}`);
+
+            socket.destroy();
+            return resolve();
+          });
         });
       });
 

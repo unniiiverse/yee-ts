@@ -1,5 +1,5 @@
-import dgram from 'dgram';
-import EventEmitter from 'events';
+import dgram from 'node:dgram';
+import EventEmitter from 'node:events';
 import { APIConfig } from './config.js';
 
 const discoveryCfg = {
