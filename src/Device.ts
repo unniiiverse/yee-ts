@@ -3,17 +3,23 @@
 import Storage from './Storage.js';
 import { IYeeDevice, TYeeDeviceProps } from './interfaces.js';
 import net from 'node:net';
+import { TypedEmitter } from 'tiny-typed-emitter';
 
 interface ISendCommandProps {
   timeout?: 1500
 }
 
-export class Device {
+interface DeviceEvents {
+  'data': (data: { method: string, params: object }) => void
+}
+
+export class Device extends TypedEmitter<DeviceEvents> {
   private cmdI = 0;
   private device: IYeeDevice;
   private storage: Storage;
 
   constructor(id: string, storage: Storage) {
+    super();
     this.storage = storage;
 
     const device = this.storage.getOne(id);
@@ -32,7 +38,7 @@ export class Device {
     });
 
     listenSocket.on('data', data => {
-      // console.log(`[yee-ts <DEV>]: ${data.toString()}`);
+      this.emit('data', JSON.parse(data.toString()));
     });
   }
 
@@ -57,7 +63,7 @@ export class Device {
             if (e) return reject(e);
 
             this.cmdI++;
-            // console.log(`[yee-ts <DEV>]: writed payload ${payload}`);
+            console.log(`[yee-ts <DEV>]: writed payload ${payload}`);
 
             socket.destroy();
             return resolve();

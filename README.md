@@ -42,10 +42,34 @@ async function bar() {
 | set_hsv | NONE | - | - | - | - |
 | set_bright | setBright | CLAIMED | effect | duration | - |
 | set_power | turnOn / turnOff | CLAIMED | effect | duration | mode |
-| toggle | toggle | - | - | - | - |
+| toggle | toggle | CLAIMED | effect | duration | mode |
 | (?) set_default | setDefaults | - | - | - | - |
 | - | NONE | - | - | - | - |
 | - | NONE | - | - | - | - |
+
+## API
+```ts
+import { Yeelight, Storage } from 'yee-ts'
+new Yeelight()
+  .getDevice(id: string): IYeeDevice // Get single device
+  .getDevices(): IYeeDevice[] // Get list of devices
+  .createDevice(): Device // Create new device connection
+
+new Storage(props?: IYeeDevice[])
+  .getAll() // Similar to getDevices in Yeelight
+  .getOne() // Similar to getDevice in Yeelight
+  .updateAll(devices: IYeeDevice[])
+
+new Yeelight().createDevice()
+  .getDevice() // Get device props
+  . // Listed in available methods
+```
+
+## Events
+```ts
+// Will be finished in new versions
+'data': (data: { method: string, params: object }) => void
+```
 
 ## Downloads
 Package also available on NPM

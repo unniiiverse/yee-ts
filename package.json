@@ -1,6 +1,6 @@
 {
   "name": "yee-ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Another yeelight API implementation",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
@@ -28,10 +28,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/unniiiverse/yee-ts.git"
-  },
-  "dependencies": {
-    "dgram": "^1.0.1",
-    "events": "^3.3.0",
-    "net": "^1.0.2"
   }
 }
