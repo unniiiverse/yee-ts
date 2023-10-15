@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "npx nodemon",
+    "start": "npx nodemon devMode",
     "build": "npx tsc"
   },
   "keywords": [],
@@ -31,8 +31,5 @@
     "transformIgnorePatterns": [
       "node_modules/(?!variables/.*)"
     ]
-  },
-  "dependencies": {
-    "tiny-typed-emitter": "^2.1.0"
   }
 }

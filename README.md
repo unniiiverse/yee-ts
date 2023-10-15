@@ -43,8 +43,8 @@ async function bar() {
 | set_bright | setBright | CLAIMED | effect | duration | - |
 | set_power | turnOn / turnOff | CLAIMED | effect | duration | mode |
 | toggle | toggle | CLAIMED | effect | duration | mode |
-| (?) set_default | setDefaults | - | - | - | - |
-| - | NONE | - | - | - | - |
+| (INDEV) set_default | setDefaults | - | - | - | - |
+| (INDEV) set_music | turnOnMusic / turnOffMusic | CLAIMED | - | - | - |
 | - | NONE | - | - | - | - |
 
 ## API
@@ -67,8 +67,7 @@ new Yeelight().createDevice()
 
 ## Events
 ```ts
-// Will be finished in new versions
-'data': (data: { method: string, params: object }) => void
+// FEATURE IS IN DEV
 ```
 
 ## Downloads

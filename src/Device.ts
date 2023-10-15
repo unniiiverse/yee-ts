@@ -4,6 +4,7 @@ import Storage from './Storage.js';
 import { IYeeDevice, TYeeDeviceProps } from './interfaces.js';
 import net from 'node:net';
 import { TypedEmitter } from 'tiny-typed-emitter';
+import { isDev } from './config.js';
 
 interface ISendCommandProps {
   timeout?: 1500
@@ -13,10 +14,13 @@ interface DeviceEvents {
   'data': (data: { method: string, params: object }) => void
 }
 
+let DEV_SUCCESS_REQ_COUNT = 0;
+
 export class Device extends TypedEmitter<DeviceEvents> {
   private cmdI = 0;
   private device: IYeeDevice;
   private storage: Storage;
+  private socket: net.Socket | undefined;
 
   constructor(id: string, storage: Storage) {
     super();
@@ -30,15 +34,21 @@ export class Device extends TypedEmitter<DeviceEvents> {
     this.device = device;
     this.device.id = id;
 
-    const listenSocket = net.createConnection({
-      port: 55443,
-      host: this.device.ip,
-      family: 4,
-      noDelay: true
-    });
+    const listenSocket = this._createSocket(5000);
 
     listenSocket.on('data', data => {
-      this.emit('data', JSON.parse(data.toString()));
+      if (isDev) {
+        DEV_SUCCESS_REQ_COUNT++;
+        console.log(`[yee-ts <DEV>]: Success requests: ${DEV_SUCCESS_REQ_COUNT}`);
+        console.log(`[yee-ts <DEV>]: Response message: ${data.toString()}`);
+
+        // TODO EVENTS
+        this.emit('data', JSON.parse(data.toString()));
+      }
+    });
+
+    listenSocket.on('error', e => {
+      throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
     });
   }
 
@@ -49,30 +59,37 @@ export class Device extends TypedEmitter<DeviceEvents> {
       const defaultTimeout = 5000;
       const timeout = props?.timeout || defaultTimeout;
 
-      const socket = new net.Socket({
-        writable: true
-      });
+      this.socket = this._createSocket(timeout);
+      const socket = this.socket;
 
-      socket.connect(55443, this.device.ip);
+      socket.write(payload, e => {
+        if (e) return reject(e);
 
-      socket.on('ready', () => {
-        socket.write(payload, e => {
+        socket.write(' ', e => {
           if (e) return reject(e);
-
-          socket.write(' ', e => {
-            if (e) return reject(e);
-
-            this.cmdI++;
-            console.log(`[yee-ts <DEV>]: writed payload ${payload}`);
-
-            socket.destroy();
-            return resolve();
-          });
+          this.cmdI++;
         });
+
+        this.cmdI++;
+
+        if (isDev) {
+          console.log(`[yee-ts <DEV>]: Writed payload ${payload}`);
+        }
+
+        socket.destroy();
+        return resolve();
       });
 
       socket.on('error', reject);
-      socket.on('timeout', () => { console.error(`[yee-ts]: Socket timeouted ${timeout}ms.`); reject(`[yee-ts]: Socket timeouted ${timeout}ms.`); });
+      socket.on('timeout', () => { reject(`[yee-ts]: Socket timeouted ${timeout}ms.`); });
+    });
+  }
+
+  private _createSocket(timeout: number): net.Socket {
+    return net.createConnection({
+      port: 55443,
+      host: this.device.ip,
+      timeout,
     });
   }
 
@@ -138,9 +155,17 @@ export class Device extends TypedEmitter<DeviceEvents> {
     return await this._sendCommand({ method: 'toggle', params: [] }, props);
   }
 
-  async setDefaults(props?: ISendCommandProps) {
-    return await this._sendCommand({ method: 'set_default', params: [] }, props);
-  }
+  // TODO Verify behaivour
+  // async setDefaults(props?: ISendCommandProps) {
+  //   return await this._sendCommand({ method: 'set_default', params: [] }, props);
+  // }
+
+  // TODO Create and operate own TCP server, see set_music prop in yeelight api
+  // async turnOnMusicMode(params?: any[], props?: ISendCommandProps) {
+  //   params = params || [];
+  //   params?.unshift(1);
+  //   return await this._sendCommand({ method: 'set_music', params: [] }, props);
+  // }
 }
 
 export default Device;
