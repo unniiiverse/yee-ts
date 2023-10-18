@@ -1,3 +1,5 @@
+import net from 'node:net';
+
 export type TYeeDeviceModel = 'colorb' | string;
 export type TYeeDeviceColorMode = 1 | 2 | 3;
 export type TYeeDeviceProps = 'id' | 'ip' | 'port' | 'model' | 'power' | 'bright' | 'color_mode' | 'ct' | 'rgb' | 'hue' | 'sat' | 'name'
@@ -15,5 +17,12 @@ export interface IYeeDevice {
   hue?: number,
   sat?: number,
   name?: string,
-  fw?: number
+  fw?: number,
+  musicMode?: boolean
+}
+
+export interface IMusicServer {
+  server: net.Server,
+  host: string,
+  port: number
 }
