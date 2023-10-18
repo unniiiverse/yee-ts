@@ -1,7 +1,7 @@
 import { IYeeDevice } from './interfaces.js';
 import { Discovery } from './Discovery.js';
 import { Storage } from './Storage.js';
-import { Device } from './Device.js';
+import { Device, IDeviceParams } from './Device.js';
 
 
 export class Yeelight {
@@ -34,8 +34,8 @@ export class Yeelight {
     return this.storage.getAll();
   }
 
-  createDevice(id: string, storage?: Storage): Device {
-    return new Device(id, storage || this.storage);
+  createDevice(id: string, storage?: Storage, params?: IDeviceParams): Device {
+    return new Device(id, storage || this.storage, params);
   }
 }
 

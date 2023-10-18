@@ -3,53 +3,51 @@
 import Storage from './Storage.js';
 import { IYeeDevice, TYeeDeviceProps, IMusicServer } from './interfaces.js';
 import net from 'node:net';
-import { TypedEmitter } from 'tiny-typed-emitter';
 import { isDev } from './config.js';
-import killPort from 'kill-port';
 
-interface ISendCommandProps {
-  timeout?: 1500
+export interface IDeviceParams {
+  writeTimeoutMs?: number,
 }
 
-interface DeviceEvents {
-  'data': (data: { method: string, params: object }) => void
-}
+const socketDefaultTimeout = 5000;
 
-let DEV_SUCCESS_REQ_COUNT = 0;
+const deviceDefaultParams: IDeviceParams = {
+  writeTimeoutMs: socketDefaultTimeout,
+};
 
-export class Device extends TypedEmitter<DeviceEvents> {
-  private cmdI = 1;
+
+export class Device {
+  private cmdId = 1;
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
+  private params: IDeviceParams = deviceDefaultParams;
   // private musicServer: net.Server | undefined;
 
-  constructor(id: string, storage: Storage) {
-    super();
+  constructor(id: string, storage: Storage, params?: IDeviceParams) {
     this.storage = storage;
 
     const device = this.storage.getOne(id);
     if (!device) {
-      throw new TypeError(`[yee-ts]: Device with id ${id} is not found.`);
+      throw new TypeError(`[yee-ts]: Device (${id}) is not found in provided storage.`);
+    }
+
+    for (const key in params) {
+      this.params[key] = params[key];
     }
 
     this.device = device;
     this.device.id = id;
 
-    this.socket = this._createSocket(5000, 55439);
+    this.socket = this._createSocket(55439, this.params.writeTimeoutMs);
 
     // let isMSListeners = false;
-    const listenSocket = this._createSocket(5000, 5529);
+    const listenSocket = this._createSocket(55429);
     listenSocket.setKeepAlive(true);
 
     listenSocket.on('data', data => {
       if (isDev) {
-        DEV_SUCCESS_REQ_COUNT++;
-        console.log(`[yee-ts <DEV>]: Success requests: ${DEV_SUCCESS_REQ_COUNT}`);
         console.log(`[yee-ts <DEV>]: Response message: ${data.toString()}`);
-
-        // TODO EVENTS
-        this.emit('data', JSON.parse(data.toString()));
       }
 
       // if (this.musicServer && !isMSListeners) {
@@ -64,37 +62,39 @@ export class Device extends TypedEmitter<DeviceEvents> {
     });
   }
 
-  private async _sendCommand(command: { method: string, params: any }, props?: ISendCommandProps): Promise<void> {
+  private async _sendCommand(command: { method: string, params: any }): Promise<string> {
     return new Promise((resolve, reject) => {
-      const payload = `${JSON.stringify({ id: this.cmdI, ...command })}\r\n`;
+      command.params = command.params || [];
+      const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
 
-      const defaultTimeout = 5000;
-      const timeout = props?.timeout || defaultTimeout;
-
-      this.socket.on('error', reject);
-      this.socket.on('timeout', () => { reject(`[yee-ts]: Socket timeouted ${timeout}ms.`); });
+      this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
+      this.socket.on('timeout', () => { reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
 
       this.socket.write(payload, async e => {
-        if (e) return reject(e);
-        this.cmdI++;
+        if (e) return;
+        this.cmdId++;
 
         if (isDev) {
           console.log(`[yee-ts <DEV>]: Writed payload ${payload}`);
         }
 
-        return resolve();
+        return resolve('ok');
       });
     });
   }
 
-  private _createSocket(timeout: number, port: number): net.Socket {
-    return net.createConnection({
-      port: 55443,
-      host: this.device.ip,
-      localAddress: '0.0.0.0',
-      localPort: port,
-      timeout,
-    });
+  private _createSocket(port = 55439, timeout = socketDefaultTimeout): net.Socket {
+    try {
+      return net.createConnection({
+        port: 55443,
+        host: this.device.ip,
+        localAddress: '0.0.0.0',
+        localPort: port,
+        timeout,
+      });
+    } catch (e) {
+      throw new Error(`[yee-ts]: Socket error - ${JSON.stringify(e)}`);
+    }
   }
 
 
@@ -103,60 +103,58 @@ export class Device extends TypedEmitter<DeviceEvents> {
     return this.device;
   }
 
-  async getProp(prop: TYeeDeviceProps) {
-    return this.device[prop];
+  getProp(param: TYeeDeviceProps) {
+    return this.device[param] || null;
   }
 
-  async sendCommand(command: { method: string, params: any }, props?: ISendCommandProps) {
-    return await this._sendCommand(command, props);
+  async sendCommand(command: { method: string, params: any[] }) {
+    return await this._sendCommand(command);
   }
 
-  async setRgb(r: number, g: number, b: number, params?: any[], props?: ISendCommandProps) {
+  async setRgb(r: number, g: number, b: number, params?: any[]) {
     const rgb = (r * 65536) + (g * 256) + b;
 
     params = params || [];
     params.unshift(rgb);
     this.device.rgb = rgb;
 
-    return await this._sendCommand({ method: 'set_rgb', params }, props);
+    return await this._sendCommand({ method: 'set_rgb', params });
   }
 
   // hsv
 
-  async setBright(brightness: number, params?: any[], props?: ISendCommandProps) {
+  async setBright(brightness: number, params?: any[]) {
     params = params || [];
     params?.unshift(brightness);
     this.device.bright = brightness;
 
-    return await this._sendCommand({ method: 'set_bright', params }, props);
+    return await this._sendCommand({ method: 'set_bright', params });
   }
 
-  async turnOn(params?: any[], props?: ISendCommandProps) {
+  async turnOn(params?: any[]) {
     params = params || [];
     params?.unshift('on');
     this.device.power = true;
 
-    return await this._sendCommand({ method: 'set_power', params }, props);
+    return await this._sendCommand({ method: 'set_power', params });
   }
 
-  async turnOff(params?: any[], props?: ISendCommandProps) {
+  async turnOff(params?: any[]) {
     params = params || [];
     params?.unshift('off');
     this.device.power = false;
 
-    return await this._sendCommand({ method: 'set_power', params }, props);
+    return await this._sendCommand({ method: 'set_power', params });
   }
 
-  async toggle(props?: ISendCommandProps) {
+  async toggle(params?: any[]) {
     if (this.device.power === true) {
       this.device.power = false;
     } else if (this.device.power === false) {
       this.device.power = true;
-    } else {
-      console.log('[yee-ts]: power mode for toggle is not provided.');
     }
 
-    return await this._sendCommand({ method: 'toggle', params: [] }, props);
+    return await this._sendCommand({ method: 'toggle', params, });
   }
 
   // TODO Verify behaivour

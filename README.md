@@ -36,15 +36,39 @@ async function bar() {
 ## Available methods
 | Method | Implemented | Param 1 | Param 2 | Param 3 | Param 4 |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| get_prop | getProp | - | - | - | - |
+| get_prop | getProp | ANY | ANY | ANY | ANY |
 | set_ct_abx | NONE | - | - | - | - |
 | set_rgb | setRgb | CLAIMED | effect | duration | - |
 | set_hsv | NONE | - | - | - | - |
 | set_bright | setBright | CLAIMED | effect | duration | - |
 | set_power | turnOn / turnOff | CLAIMED | effect | duration | mode |
 | toggle | toggle | CLAIMED | effect | duration | mode |
-| set_music | turnOnMusic / turnOffMusic | CLAIMED | - | - | - |
-| - | NONE | - | - | - | - |
+| set_default | NONE | - | - | - | - |
+| start_cf | NONE | - | - | - | - |
+| set_scene | NONE | - | - | - | - |
+| cron_add | NONE | - | - | - | - |
+| cron_get | NONE | - | - | - | - |
+| cron_del | NONE | - | - | - | - |
+| set_adjust | NONE | - | - | - | - |
+| set_music | NONE | - | - | - | - |
+| set_name | NONE | - | - | - | - |
+| bg_set_rgb | NONE | - | - | - | - |
+| bg_set_hsv | NONE | - | - | - | - |
+| bg_set_ct_abx | NONE | - | - | - | - |
+| bg_start_cf | NONE | - | - | - | - |
+| bg_stop_cf | NONE | - | - | - | - |
+| bg_set_scene | NONE | - | - | - | - |
+| bg_set_default | NONE | - | - | - | - |
+| bg_set_power | NONE | - | - | - | - |
+| bg_set_bright | NONE | - | - | - | - |
+| bg_set_adjust | NONE | - | - | - | - |
+| bg_toggle | NONE | - | - | - | - |
+| dev_toggle | NONE | - | - | - | - |
+| adjust_bright | NONE | - | - | - | - |
+| adjust_ct | NONE | - | - | - | - |
+| adjust_color | NONE | - | - | - | - |
+| bg_adjust_bright | NONE | - | - | - | - |
+| bg_adjust_ct | NONE | - | - | - | - |
 
 ## API
 ```ts
@@ -62,11 +86,6 @@ new Storage(props?: IYeeDevice[])
 new Yeelight().createDevice()
   .getDevice() // Get device props
   . // Listed in available methods
-```
-
-## Events
-```ts
-// FEATURE IS IN DEV
 ```
 
 ## Downloads
