@@ -11,16 +11,16 @@ If this package works fine with other yeelight devices, please notify me in issu
 ```ts
 import {Yeelight, Storage} from 'yee-ts'
 
-// Default usage
+// Default usage (discovery provides storage)
 async function foo() {
   const yee = new Yeelight();
   await yee.discover() // Discover yeelight devices.
 
-  const device = yee.createDevice('ID') // Create device with id
-  device.toggle() // Use
+  const device = yee.createDevice('ID') // Create device with bulb id
+  await device.toggle() // Use
 }
 
-// Only light control
+// Only light control (custom storage)
 async function bar() {
   const yee = new Yeelight();
   const storage = new Storage([{
@@ -28,8 +28,8 @@ async function bar() {
       ip: '192.168.0.1'
     }])
 
-  const device = yee.createDevice('123', storage) // Create device with id
-  device.toggle() // Use
+  const device = yee.createDevice('123', storage) // Create device with bulb id
+  await device.toggle() // Use
 }
 ```
 
@@ -89,6 +89,13 @@ new Yeelight().createDevice()
   . // Listed in available methods
 ```
 
+## Events
+```ts
+interface IDeviceEmitter {
+  response: (data: { method: string, params: { [attr: string]: any } }, device: IYeeDevice) => void
+}
+```
+
 ## Downloads
 Package also available on NPM
 ```
@@ -100,3 +107,9 @@ Contributions are currently closed (until i write test cases)
 
 ### Dev notes
 If SSDP does not work, try to off IGMP in your router. Also SSDP might work not properly, idk how fix that, maybe it bug in windows. Just take it, pc reload can help.
+
+<hr>
+
+License: MIT <br>
+Last update: 1.1.2 <br>
+unniiiverse 2023 

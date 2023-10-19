@@ -4,11 +4,16 @@ import Storage from './Storage.js';
 import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow } from './interfaces.js';
 import net from 'node:net';
 import { isDev } from './config.js';
+import { TypedEmitter } from 'tiny-typed-emitter';
 
 export interface IDeviceParams {
   writeTimeoutMs?: number,
   writeSocketPort?: number,
   listenSocketPort?: number
+}
+
+interface IDeviceEmitter {
+  response: (data: { method: string, params: { [attr: string]: any } }, device: IYeeDevice) => void
 }
 
 const socketDefaultTimeout = 5000;
@@ -20,16 +25,16 @@ const deviceDefaultParams: IDeviceParams = {
 };
 
 
-export class Device {
+export class Device extends TypedEmitter<IDeviceEmitter> {
   private cmdId = 1;
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
-  private isSocketReady = false;
   private params: IDeviceParams = deviceDefaultParams;
   // private musicServer: net.Server | undefined;
 
   constructor(id: string, storage: Storage, params?: IDeviceParams) {
+    super();
     this.storage = storage;
 
     const device = this.storage.getOne(id);
@@ -51,30 +56,29 @@ export class Device {
     listenSocket.setKeepAlive(true);
 
     listenSocket.on('data', payload => {
+      const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+
+      for (const key in data.params) {
+        this.device[key] = data.params[key];
+      }
+
+      // Rewrite auto field
+      if (data.params.power === 'on') {
+        this.device.power = true;
+      } else if (data.params.power === 'off') {
+        this.device.power = false;
+      }
+
+      if (data.params.flowing || data.params.flow_params) {
+        this.device.flowing = true;
+      } else {
+        this.device.flowing = false;
+      }
+
+      this.emit('response', data, this.device);
+
       if (isDev) {
         console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
-
-        const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
-        console.log(data);
-
-        for (const key in data.params) {
-          this.device[key] = data.params[key];
-        }
-
-        // Rewrite auto field
-        if (data.params.power === 'on') {
-          this.device.power = true;
-        } else if (data.params.power === 'off') {
-          this.device.power = false;
-        }
-
-        if (data.params.flowing || data.params.flow_params) {
-          this.device.flowing = true;
-        } else {
-          this.device.flowing = false;
-        }
-
-        console.log(this.device);
       }
 
       // if (this.musicServer && !isMSListeners) {
