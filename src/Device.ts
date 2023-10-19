@@ -7,12 +7,16 @@ import { isDev } from './config.js';
 
 export interface IDeviceParams {
   writeTimeoutMs?: number,
+  writeSocketPort?: number,
+  listenSocketPort?: number
 }
 
 const socketDefaultTimeout = 5000;
 
 const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: socketDefaultTimeout,
+  writeSocketPort: 55439,
+  listenSocketPort: 55429,
 };
 
 
@@ -39,10 +43,10 @@ export class Device {
     this.device = device;
     this.device.id = id;
 
-    this.socket = this._createSocket(55439, this.params.writeTimeoutMs);
+    this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
 
     // let isMSListeners = false;
-    const listenSocket = this._createSocket(55429);
+    const listenSocket = this._createSocket(this.params.listenSocketPort);
     listenSocket.setKeepAlive(true);
 
     listenSocket.on('data', payload => {
@@ -84,7 +88,7 @@ export class Device {
     });
   }
 
-  private async _sendCommand(command: { method: string, params: any }): Promise<string> {
+  private async _sendCommand(command: { method: string, params: any }): Promise<boolean> {
     return new Promise((resolve, reject) => {
       command.params = command.params || [];
       const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
@@ -100,7 +104,7 @@ export class Device {
           console.log(`[yee-ts <DEV>]: Writed payload ${payload}`);
         }
 
-        return resolve('ok');
+        return resolve(true);
       });
     });
   }
@@ -119,7 +123,21 @@ export class Device {
     }
   }
 
+  private _ensurePowerOn() {
+    if (!this.device.power) {
+      throw new TypeError('[yee-ts]: Device must be on, or provide power state in storage.');
+    }
+  }
 
+
+
+  //* TEMPLATE
+  // async name(params?: any[]) {
+  //   params = params || [];
+  //   params.unshift('');
+
+  //   return await this._sendCommand({ method: '', params });
+  // }
 
   getDevice(): IYeeDevice {
     return this.device;
@@ -133,7 +151,30 @@ export class Device {
     return await this._sendCommand(command);
   }
 
+  async setCtAbx(ct: number, params?: any[]) {
+    this._ensurePowerOn();
+
+    if (ct < 1700 || ct > 6500) {
+      throw new RangeError('[yee-ts]: Ct value must be in range between 1700 - 6500');
+    }
+
+    params = params || [];
+    params.unshift(ct);
+
+    return await this._sendCommand({ method: 'set_ct_abx', params });
+  }
+
   async setRgb(r: number, g: number, b: number, params?: any[]) {
+    this._ensurePowerOn();
+
+    if (r < 0 || r > 256) {
+      throw new RangeError('[yee-ts]: Red value must be in range between 0 - 256');
+    } else if (g < 0 || g > 256) {
+      throw new RangeError('[yee-ts]: Gren value must be in range between 0 - 256');
+    } else if (b < 0 || b > 256) {
+      throw new RangeError('[yee-ts]: Blue value must be in range between 0 - 256');
+    }
+
     const rgb = (r * 65536) + (g * 256) + b;
 
     params = params || [];
@@ -142,31 +183,68 @@ export class Device {
     return await this._sendCommand({ method: 'set_rgb', params });
   }
 
-  // hsv
+  async setHsv(hue: number, sat: number, params?: any[]) {
+    this._ensurePowerOn();
+
+    if (hue < 0 || hue > 359) {
+      throw new RangeError('[yee-ts]: Hue value must be in range between 0 - 359');
+    }
+
+    if (sat < 0 || sat > 100) {
+      throw new RangeError('[yee-ts]: Sat value must be in range between 0 - 100');
+    }
+
+    params = params || [];
+    params.unshift('');
+
+    return await this._sendCommand({ method: '', params });
+  }
 
   async setBright(brightness: number, params?: any[]) {
+    this._ensurePowerOn();
+
+    if (brightness < 1 || brightness > 100) {
+      throw new RangeError('[yee-ts]: Bright value must be in range between 1 - 100');
+    }
+
     params = params || [];
-    params?.unshift(brightness);
+    params.unshift(brightness);
 
     return await this._sendCommand({ method: 'set_bright', params });
   }
 
   async turnOn(params?: any[]) {
+    if (this.device.power === true) {
+      console.log('[yee-ts]: power is already on');
+      return true;
+    }
+
     params = params || [];
-    params?.unshift('on');
+    params.unshift('on');
 
     return await this._sendCommand({ method: 'set_power', params });
   }
 
   async turnOff(params?: any[]) {
+    if (this.device.power === false) {
+      console.log('[yee-ts]: power is already off');
+      return true;
+    }
+
     params = params || [];
-    params?.unshift('off');
+    params.unshift('off');
 
     return await this._sendCommand({ method: 'set_power', params });
   }
 
-  async toggle(params?: any[]) {
-    return await this._sendCommand({ method: 'toggle', params, });
+  async toggle() {
+    return await this._sendCommand({ method: 'toggle', params: [], });
+  }
+
+  async setDefault() {
+    this._ensurePowerOn();
+
+    return await this._sendCommand({ method: '', params: [] });
   }
 
   // TODO Verify behaivour

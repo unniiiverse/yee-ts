@@ -36,14 +36,14 @@ async function bar() {
 ## Available methods
 | Method | Implemented | Param 1 | Param 2 | Param 3 | Param 4 |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| get_prop | getProp (Takes data from storage, not bulb) | NONE | NONE | NONE | NONE |
-| set_ct_abx | NONE | - | - | - | - |
-| set_rgb | setRgb | CLAIMED | effect | duration | - |
-| set_hsv | NONE | - | - | - | - |
-| set_bright | setBright | CLAIMED | effect | duration | - |
-| set_power | turnOn / turnOff | CLAIMED | effect | duration | mode |
-| toggle | toggle | CLAIMED | effect | duration | mode |
-| set_default | NONE | - | - | - | - |
+| get_prop | getProp (Takes data from storage, not bulb) | - | - | - | - |
+| set_ct_abx | setCtAbx | CLAIMED(ct) | effect | duration | - |
+| set_rgb | setRgb | CLAIMED(rgb) | effect | duration | - |
+| set_hsv | setHsv | CLAIMED(hue) | CLAIMED(sat) | effect | duration |
+| set_bright | setBright | CLAIMED(bright) | effect | duration | - |
+| set_power | turnOn / turnOff | CLAIMED(on/off) | effect | duration | mode |
+| toggle | toggle | - | - | - | - |
+| set_default | setDefault | - | - | - | - |
 | start_cf | NONE | - | - | - | - |
 | set_scene | NONE | - | - | - | - |
 | cron_add | NONE | - | - | - | - |
