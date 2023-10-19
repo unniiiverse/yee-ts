@@ -18,6 +18,8 @@ export interface IYeeDevice {
   sat?: number,
   name?: string,
   fw?: number,
+  flow_params?: string,
+  flowing?: boolean,
   musicMode?: boolean
 }
 

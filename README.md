@@ -36,7 +36,7 @@ async function bar() {
 ## Available methods
 | Method | Implemented | Param 1 | Param 2 | Param 3 | Param 4 |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| get_prop | getProp | ANY | ANY | ANY | ANY |
+| get_prop | getProp (Takes data from storage, not bulb) | NONE | NONE | NONE | NONE |
 | set_ct_abx | NONE | - | - | - | - |
 | set_rgb | setRgb | CLAIMED | effect | duration | - |
 | set_hsv | NONE | - | - | - | - |
@@ -78,7 +78,7 @@ new Yeelight()
   .getDevices(): IYeeDevice[] // Get list of devices
   .createDevice(): Device // Create new device connection
 
-new Storage(props?: IYeeDevice[])
+new Storage(storage?: IYeeDevice[])
   .getAll() // Similar to getDevices in Yeelight
   .getOne() // Similar to getDevice in Yeelight
   .updateAll(devices: IYeeDevice[])

@@ -45,9 +45,31 @@ export class Device {
     const listenSocket = this._createSocket(55429);
     listenSocket.setKeepAlive(true);
 
-    listenSocket.on('data', data => {
+    listenSocket.on('data', payload => {
       if (isDev) {
-        console.log(`[yee-ts <DEV>]: Response message: ${data.toString()}`);
+        console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
+
+        const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+        console.log(data);
+
+        for (const key in data.params) {
+          this.device[key] = data.params[key];
+        }
+
+        // Rewrite auto field
+        if (data.params.power === 'on') {
+          this.device.power = true;
+        } else if (data.params.power === 'off') {
+          this.device.power = false;
+        }
+
+        if (data.params.flowing || data.params.flow_params) {
+          this.device.flowing = true;
+        } else {
+          this.device.flowing = false;
+        }
+
+        console.log(this.device);
       }
 
       // if (this.musicServer && !isMSListeners) {
@@ -116,7 +138,6 @@ export class Device {
 
     params = params || [];
     params.unshift(rgb);
-    this.device.rgb = rgb;
 
     return await this._sendCommand({ method: 'set_rgb', params });
   }
@@ -126,7 +147,6 @@ export class Device {
   async setBright(brightness: number, params?: any[]) {
     params = params || [];
     params?.unshift(brightness);
-    this.device.bright = brightness;
 
     return await this._sendCommand({ method: 'set_bright', params });
   }
@@ -134,7 +154,6 @@ export class Device {
   async turnOn(params?: any[]) {
     params = params || [];
     params?.unshift('on');
-    this.device.power = true;
 
     return await this._sendCommand({ method: 'set_power', params });
   }
@@ -142,18 +161,11 @@ export class Device {
   async turnOff(params?: any[]) {
     params = params || [];
     params?.unshift('off');
-    this.device.power = false;
 
     return await this._sendCommand({ method: 'set_power', params });
   }
 
   async toggle(params?: any[]) {
-    if (this.device.power === true) {
-      this.device.power = false;
-    } else if (this.device.power === false) {
-      this.device.power = true;
-    }
-
     return await this._sendCommand({ method: 'toggle', params, });
   }
 
