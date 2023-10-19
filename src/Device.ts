@@ -164,8 +164,19 @@ export class Device {
     return await this._sendCommand({ method: 'set_ct_abx', params });
   }
 
-  async setRgb(r: number, g: number, b: number, params?: any[]) {
+  async setRgb(rgbFull: number | null, r: number, g: number, b: number, params?: any[]) {
     this._ensurePowerOn();
+
+    if (rgbFull) {
+      if (rgbFull < 0 || rgbFull > 16777215) {
+        throw new RangeError('[yee-ts]: RGB must be in range between 0 - 16777215');
+      }
+
+      params = params || [];
+      params.unshift(rgbFull);
+
+      return await this._sendCommand({ method: 'set_rgb', params });
+    }
 
     if (r < 0 || r > 256) {
       throw new RangeError('[yee-ts]: Red value must be in range between 0 - 256');
@@ -278,6 +289,32 @@ export class Device {
     });
 
     return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow_exp.join(',')] });
+  }
+
+  async stopCf() {
+    return await this._sendCommand({ method: 'stop_cf', params: [] });
+  }
+
+  async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[]) {
+    if (scene === 'color') {
+      await this.setRgb(params[0], 0, 0, 0);
+      return await this.setBright(params[1]);
+    } else if (scene === 'hsv') {
+      await this.setHsv(params[0], params[1]);
+      return await this.setBright(params[2]);
+    } else if (scene === 'ct') {
+      await this.setCtAbx(params[0]);
+      return await this.setBright(params[1]);
+    } else if (scene === 'cf') {
+      await this.startCf(params[0], params[1], params[2]);
+      return await this.setBright(params[3]);
+    } else if (scene === 'auto_delay_off') {
+      setTimeout(() => {
+        this.device.power = false;
+        console.log(this.device);
+      }, params[1]);
+      return await this._sendCommand({ method: 'set_scene', params: ['auto_delay_off', params[0], params[1]] });
+    }
   }
 
   // TODO Verify behaivour

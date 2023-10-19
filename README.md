@@ -44,8 +44,9 @@ async function bar() {
 | set_power | turnOn / turnOff | CLAIMED(on/off) | effect | duration | mode |
 | toggle | toggle | - | - | - | - |
 | set_default | setDefault | - | - | - | - |
-| start_cf | startCf | count | action | flow | - |
-| set_scene | NONE | - | - | - | - |
+| start_cf | startCf | CLAIMED(count) | CLAIMED(action) | CLAIMED(flow) | - |
+| stop_cf | stopCf | - | - | - | - |
+| set_scene | setScene | CLAIMED(class) | - | - | - |
 | cron_add | NONE | - | - | - | - |
 | cron_get | NONE | - | - | - | - |
 | cron_del | NONE | - | - | - | - |

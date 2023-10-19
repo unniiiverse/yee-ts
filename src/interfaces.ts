@@ -20,7 +20,8 @@ export interface IYeeDevice {
   fw?: number,
   flow_params?: string,
   flowing?: boolean,
-  musicMode?: boolean
+  musicMode?: boolean,
+  delayOff?: number
 }
 
 export interface IMusicServer {

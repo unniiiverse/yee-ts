@@ -3,7 +3,6 @@ import { Discovery } from './Discovery.js';
 import { Storage } from './Storage.js';
 import { Device, IDeviceParams } from './Device.js';
 
-
 export class Yeelight {
   private discovery = new Discovery();
   private storage = new Storage();
