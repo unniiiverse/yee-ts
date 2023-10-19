@@ -25,6 +25,7 @@ export class Device {
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
+  private isSocketReady = false;
   private params: IDeviceParams = deviceDefaultParams;
   // private musicServer: net.Server | undefined;
 
@@ -96,16 +97,25 @@ export class Device {
       this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
       this.socket.on('timeout', () => { reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
 
-      this.socket.write(payload, async e => {
-        if (e) return;
-        this.cmdId++;
-
-        if (isDev) {
-          console.log(`[yee-ts <DEV>]: Writed payload ${payload}`);
+      const openingInterval = setInterval(() => {
+        console.log(this.socket.readyState);
+        if (this.socket.readyState !== 'open') {
+          return;
         }
 
-        return resolve(true);
-      });
+        clearInterval(openingInterval);
+
+        this.socket.write(payload, async e => {
+          if (e) return;
+          this.cmdId++;
+
+          if (isDev) {
+            console.log(`[yee-ts <DEV>]: Writed payload ${payload}`);
+          }
+
+          return resolve(true);
+        });
+      }, 50);
     });
   }
 
