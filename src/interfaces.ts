@@ -28,3 +28,10 @@ export interface IMusicServer {
   host: string,
   port: number
 }
+
+export interface IColorFlow {
+  duration: number,
+  mode: 1 | 2 | 7,
+  value: number,
+  brightness: number
+}

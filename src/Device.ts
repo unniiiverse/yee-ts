@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import Storage from './Storage.js';
-import { IYeeDevice, TYeeDeviceProps, IMusicServer } from './interfaces.js';
+import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow } from './interfaces.js';
 import net from 'node:net';
 import { isDev } from './config.js';
 
@@ -197,7 +197,7 @@ export class Device {
     params = params || [];
     params.unshift('');
 
-    return await this._sendCommand({ method: '', params });
+    return await this._sendCommand({ method: 'set_hsv', params });
   }
 
   async setBright(brightness: number, params?: any[]) {
@@ -244,7 +244,40 @@ export class Device {
   async setDefault() {
     this._ensurePowerOn();
 
-    return await this._sendCommand({ method: '', params: [] });
+    return await this._sendCommand({ method: 'set_default', params: [] });
+  }
+
+  async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string) {
+    this._ensurePowerOn();
+
+    if (!Array.isArray(flow)) {
+      return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow] });
+    }
+
+    const flow_exp: string[] = [];
+    flow.forEach(fl => {
+      if (fl.brightness < 1 || fl.brightness > 100) {
+        throw new RangeError('[yee-ts]: Flow brightness must be in range between 1 - 100');
+      }
+
+      if (fl.duration < 50) {
+        throw new RangeError('[yee-ts]: Flow duration must be more than 50ms');
+      }
+
+      if (fl.mode === 1) {
+        if (fl.value < 0 || fl.value > 16777215) {
+          throw new RangeError('[yee-ts]: Flow RGB (mode 1) must be in range between 0 - 16777215');
+        }
+      } else if (fl.mode === 2) {
+        if (fl.value < 1700 || fl.value > 6500) {
+          throw new RangeError('[yee-ts]: Flow CT (mode 2) must be in range between 1700 - 6500');
+        }
+      }
+
+      flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
+    });
+
+    return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow_exp.join(',')] });
   }
 
   // TODO Verify behaivour
