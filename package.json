@@ -1,6 +1,6 @@
 {
   "name": "yee-ts",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Brand new yeelight API implementation on ts node",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
@@ -24,6 +24,7 @@
   ],
   "author": "unniiiverse<unniiiverse.github.io>",
   "devDependencies": {
+    "@types/ip": "^1.1.2",
     "@typescript-eslint/eslint-plugin": "^5.54.1",
     "@typescript-eslint/parser": "^5.54.1",
     "eslint": "^8.36.0",
@@ -36,6 +37,7 @@
     "url": "https://github.com/unniiiverse/yee-ts.git"
   },
   "dependencies": {
+    "ip": "^1.1.8",
     "tiny-typed-emitter": "^2.1.0"
   }
 }

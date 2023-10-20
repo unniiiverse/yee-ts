@@ -1,18 +1,17 @@
 import dgram from 'node:dgram';
 import EventEmitter from 'node:events';
-import { APIConfig } from './config.js';
+import ip from 'ip';
 
-const discoveryCfg = {
-  message: '',
-  host: APIConfig.host,
-  port: APIConfig.port
+const options = {
+  port: 1982,
+  multicastAddr: '239.255.255.250',
+  discoveryMsg: 'M-SEARCH * HTTP/1.1\r\nMAN: "ssdp:discover"\r\nST: wifi_bulb\r\n',
 };
 
-discoveryCfg.message = `M-SEARCH * HTTP/1.1\r\nHOST:${discoveryCfg.host}:${discoveryCfg.port}\r\nMAN:"ssdp:discover"\r\nST:wifi_bulb\r\n`;
 
 export class Discovery extends EventEmitter {
   private socket: dgram.Socket;
-  private config = discoveryCfg;
+  private config = options;
 
   constructor() {
     super();
@@ -21,18 +20,11 @@ export class Discovery extends EventEmitter {
 
   discover(): void {
     this.socket.on('message', (msg, rinfo) => this.emit('message', msg, rinfo));
-
     this.socket.on('error', e => this.emit('error', e));
 
-    try {
-      this.socket.bind(43210, '0.0.0.0', () => this._onBoud());
-    } catch (e) {
-      this._onBoud();
-    }
-  }
-
-  private _onBoud() {
-    this.socket.send(this.config.message, 0, this.config.message.length, this.config.port, this.config.host);
+    this.socket.bind(43210, ip.address(), () => {
+      this.socket.send(this.config.discoveryMsg, this.config.port, this.config.multicastAddr);
+    });
   }
 }
 
