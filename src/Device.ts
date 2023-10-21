@@ -102,7 +102,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       this.socket.on('timeout', () => { reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
 
       const openingInterval = setInterval(() => {
-        console.log(this.socket.readyState);
         if (this.socket.readyState !== 'open') {
           return;
         }

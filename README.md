@@ -105,9 +105,6 @@ npm i yee-ts
 ## Contributions
 Contributions are currently closed (until i write test cases)
 
-### Dev notes
-If SSDP does not work, try to off IGMP in your router. Also SSDP might work not properly, idk how fix that, maybe it bug in windows. Just take it, pc reload can help.
-
 <hr>
 
 License: MIT <br>

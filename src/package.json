@@ -5,8 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "npx nodemon devMode",
-    "build": "npx tsc"
+    "start": "npx nodemon",
+    "dev": "npx nodemon devMode",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
