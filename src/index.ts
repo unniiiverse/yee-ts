@@ -1,4 +1,4 @@
-export { Yeelight } from './Yeelight.js';
-export { Storage } from './Storage.js';
+export { Yeelight } from './Yeelight';
+export { Storage } from './Storage';
 
-export type { IYeeDevice, IColorFlow } from './interfaces.js';
+export type { IYeeDevice, IColorFlow } from './interfaces';

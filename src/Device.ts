@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import Storage from './Storage.js';
-import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow } from './interfaces.js';
+import Storage from './Storage';
+import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow } from './interfaces';
 import net from 'node:net';
-import { isDev } from './config.js';
+import { isDev } from './config';
 import { TypedEmitter } from 'tiny-typed-emitter';
 
 export interface IDeviceParams {

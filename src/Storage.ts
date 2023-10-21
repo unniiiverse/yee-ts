@@ -1,4 +1,4 @@
-import { IYeeDevice } from './interfaces.js';
+import { IYeeDevice } from './interfaces';
 
 export class Storage {
   private storage: IYeeDevice[] = [];

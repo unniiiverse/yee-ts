@@ -1,7 +1,7 @@
-import { IYeeDevice } from './interfaces.js';
-import { Discovery } from './Discovery.js';
-import { Storage } from './Storage.js';
-import { Device, IDeviceParams } from './Device.js';
+import { IYeeDevice } from './interfaces';
+import { Discovery } from './Discovery';
+import { Storage } from './Storage';
+import { Device, IDeviceParams } from './Device';
 
 export class Yeelight {
   private discovery = new Discovery();
