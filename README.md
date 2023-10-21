@@ -103,7 +103,11 @@ npm i yee-ts
 ```
 
 ## Contributions
-Contributions are currently closed (until i write test cases)
+Contributions are open. Tests exec in src/ by 
+```
+npm run test
+```
+Tests written only for storage for now. 
 
 <hr>
 
