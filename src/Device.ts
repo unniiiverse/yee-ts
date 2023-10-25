@@ -164,7 +164,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(command);
   }
 
-  async setCtAbx(ct: number, params?: any[]) {
+  async setCtAbx(ct: number, params?: any[], isBg?: false) {
     this._ensurePowerOn();
 
     if (ct < 1700 || ct > 6500) {
@@ -174,10 +174,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift(ct);
 
-    return await this._sendCommand({ method: 'set_ct_abx', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_ct_abx`, params });
   }
 
-  async setRgb(rgbFull: number | null, r: number, g: number, b: number, params?: any[]) {
+  async setRgb(rgbFull: number | null, r: number, g: number, b: number, params?: any[], isBg?: false) {
     this._ensurePowerOn();
 
     if (rgbFull) {
@@ -204,10 +204,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift(rgb);
 
-    return await this._sendCommand({ method: 'set_rgb', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_rgb`, params });
   }
 
-  async setHsv(hue: number, sat: number, params?: any[]) {
+  async setHsv(hue: number, sat: number, params?: any[], isBg?: false) {
     this._ensurePowerOn();
 
     if (hue < 0 || hue > 359) {
@@ -221,10 +221,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift('');
 
-    return await this._sendCommand({ method: 'set_hsv', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_hsv`, params });
   }
 
-  async setBright(brightness: number, params?: any[]) {
+  async setBright(brightness: number, params?: any[], isBg?: false) {
     this._ensurePowerOn();
 
     if (brightness < 1 || brightness > 100) {
@@ -234,10 +234,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift(brightness);
 
-    return await this._sendCommand({ method: 'set_bright', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_bright`, params });
   }
 
-  async turnOn(params?: any[]) {
+  async turnOn(params?: any[], isBg?: false) {
     if (this.device.power === true) {
       console.log('[yee-ts]: power is already on');
       return true;
@@ -246,10 +246,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift('on');
 
-    return await this._sendCommand({ method: 'set_power', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
   }
 
-  async turnOff(params?: any[]) {
+  async turnOff(params?: any[], isBg?: false) {
     if (this.device.power === false) {
       console.log('[yee-ts]: power is already off');
       return true;
@@ -258,20 +258,20 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     params = params || [];
     params.unshift('off');
 
-    return await this._sendCommand({ method: 'set_power', params });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
   }
 
-  async toggle() {
-    return await this._sendCommand({ method: 'toggle', params: [], });
+  async toggle(isBg?: false) {
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}toggle`, params: [], });
   }
 
-  async setDefault() {
+  async setDefault(isBg?: false) {
     this._ensurePowerOn();
 
-    return await this._sendCommand({ method: 'set_default', params: [] });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_default`, params: [] });
   }
 
-  async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string) {
+  async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string, isBg?: false) {
     this._ensurePowerOn();
 
     if (!Array.isArray(flow)) {
@@ -301,39 +301,33 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
     });
 
-    return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow_exp.join(',')] });
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}start_cf`, params: [repeat, action, flow_exp.join(',')] });
   }
 
-  async stopCf() {
-    return await this._sendCommand({ method: 'stop_cf', params: [] });
+  async stopCf(isBg?: false) {
+    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}stop_cf`, params: [] });
   }
 
-  async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[]) {
+  async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[], isBg?: false) {
     if (scene === 'color') {
       await this.setRgb(params[0], 0, 0, 0);
-      return await this.setBright(params[1]);
+      return await this.setBright(params[1], [], isBg);
     } else if (scene === 'hsv') {
       await this.setHsv(params[0], params[1]);
-      return await this.setBright(params[2]);
+      return await this.setBright(params[2], [], isBg);
     } else if (scene === 'ct') {
       await this.setCtAbx(params[0]);
-      return await this.setBright(params[1]);
+      return await this.setBright(params[1], [], isBg);
     } else if (scene === 'cf') {
       await this.startCf(params[0], params[1], params[2]);
-      return await this.setBright(params[3]);
+      return await this.setBright(params[3], [], isBg);
     } else if (scene === 'auto_delay_off') {
       setTimeout(() => {
         this.device.power = false;
-        console.log(this.device);
       }, params[1]);
-      return await this._sendCommand({ method: 'set_scene', params: ['auto_delay_off', params[0], params[1]] });
+      return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_scene`, params: ['auto_delay_off', params[0], params[1]] });
     }
   }
-
-  // TODO Verify behaivour
-  // async setDefaults(props?: ISendCommandProps) {
-  //   return await this._sendCommand({ method: 'set_default', params: [] }, props);
-  // }
 
   // TODO Create and operate own TCP server, see set_music prop in yeelight api
   // createMusicModeServer(host = '0.0.0.0', port = 48925): IMusicServer {

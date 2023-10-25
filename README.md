@@ -53,23 +53,11 @@ async function bar() {
 | set_adjust | NONE | - | - | - | - |
 | set_music | NONE | - | - | - | - |
 | set_name | NONE | - | - | - | - |
-| bg_set_rgb | NONE | - | - | - | - |
-| bg_set_hsv | NONE | - | - | - | - |
-| bg_set_ct_abx | NONE | - | - | - | - |
-| bg_start_cf | NONE | - | - | - | - |
-| bg_stop_cf | NONE | - | - | - | - |
-| bg_set_scene | NONE | - | - | - | - |
-| bg_set_default | NONE | - | - | - | - |
-| bg_set_power | NONE | - | - | - | - |
-| bg_set_bright | NONE | - | - | - | - |
-| bg_set_adjust | NONE | - | - | - | - |
-| bg_toggle | NONE | - | - | - | - |
 | dev_toggle | NONE | - | - | - | - |
 | adjust_bright | NONE | - | - | - | - |
 | adjust_ct | NONE | - | - | - | - |
 | adjust_color | NONE | - | - | - | - |
-| bg_adjust_bright | NONE | - | - | - | - |
-| bg_adjust_ct | NONE | - | - | - | - |
+To send bg command, set isBg to true
 
 ## API
 ```ts
@@ -96,21 +84,14 @@ interface IDeviceEmitter {
 }
 ```
 
-## Downloads
+## Download
 Package also available on NPM
 ```
 npm i yee-ts
 ```
 
-## Contributions
-Contributions are open. Tests exec in src/ by 
-```
-npm run test
-```
-Tests written only for storage for now. 
-
 <hr>
 
 License: MIT <br>
-Last update: 1.1.2 <br>
+Last update: 1.2.2 <br>
 unniiiverse 2023 
