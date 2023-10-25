@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import Storage from './Storage';
-import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow } from './interfaces';
+import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow, TDeviceEffect } from './interfaces';
+import * as deviceInterface from './interfaces';
 import net from 'node:net';
 import { isDev } from './config';
 import { TypedEmitter } from 'tiny-typed-emitter';
+import * as handler from './deviceHandlers';
 
 export interface IDeviceParams {
   writeTimeoutMs?: number,
   writeSocketPort?: number,
-  listenSocketPort?: number
+  listenSocketPort?: number,
+  defaultEffect?: TDeviceEffect,
+  effectDuration?: number
 }
 
 interface IDeviceEmitter {
@@ -22,8 +26,9 @@ const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: socketDefaultTimeout,
   writeSocketPort: 55439,
   listenSocketPort: 55429,
+  defaultEffect: 'smooth',
+  effectDuration: 300,
 };
-
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
   private cmdId = 1;
@@ -31,7 +36,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   private storage: Storage;
   private socket: net.Socket;
   private params: IDeviceParams = deviceDefaultParams;
-  // private musicServer: net.Server | undefined;
 
   constructor(id: string, storage: Storage, params?: IDeviceParams) {
     super();
@@ -51,7 +55,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
     this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
 
-    // let isMSListeners = false;
     const listenSocket = this._createSocket(this.params.listenSocketPort);
     listenSocket.setKeepAlive(true);
 
@@ -80,12 +83,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       if (isDev) {
         console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
       }
-
-      // if (this.musicServer && !isMSListeners) {
-      //   isMSListeners = true;
-      //   this.musicServer.on('connection', socket => console.log('connected', socket));
-      //   this.musicServer.on('listening', () => console.log('listening'));
-      // }
     });
 
     listenSocket.on('error', e => {
@@ -136,9 +133,9 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     }
   }
 
-  private _ensurePowerOn() {
-    if (!this.device.power) {
-      throw new TypeError('[yee-ts]: Device must be on, or provide power state in storage.');
+  private _ensurePower(val: boolean) {
+    if (this.device.power !== val) {
+      throw new TypeError(`[yee-ts]: Device must be ${val}, or provide power state in storage.`);
     }
   }
 
@@ -164,185 +161,170 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(command);
   }
 
-  async setCtAbx(ct: number, params?: any[], isBg?: false) {
-    this._ensurePowerOn();
+  async set_ct_abx({ ct, duration, effect, isBg, isTest }: deviceInterface.IDeviceSetCtAbx) {
+    this._ensurePower(true);
+    handler.ctCheckRange(ct);
 
-    if (ct < 1700 || ct > 6500) {
-      throw new RangeError('[yee-ts]: Ct value must be in range between 1700 - 6500');
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
+
+    const payload = { method: `${isBg ? 'bg_' : ''}set_ct_abx`, params: [ct, effect, duration] };
+
+    if (isTest) {
+      return payload;
     }
 
-    params = params || [];
-    params.unshift(ct);
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_ct_abx`, params });
+    return await this._sendCommand(payload);
   }
 
-  async setRgb(rgbFull: number | null, r: number, g: number, b: number, params?: any[], isBg?: false) {
-    this._ensurePowerOn();
+  async set_rgb({ full, r, g, b, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetRgb) {
+    this._ensurePower(true);
 
-    if (rgbFull) {
-      if (rgbFull < 0 || rgbFull > 16777215) {
-        throw new RangeError('[yee-ts]: RGB must be in range between 0 - 16777215');
-      }
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
 
-      params = params || [];
-      params.unshift(rgbFull);
+    let rgb = 0;
 
-      return await this._sendCommand({ method: 'set_rgb', params });
+    if (full) {
+      handler.rgbCheckRange(full, 0, 0, 0);
+      rgb = full;
+    } else if (r && g && b) {
+      handler.rgbCheckRange(null, r, g, b);
+      rgb = handler.rgbToFull(r, g, b);
+    } else {
+      throw TypeError('[yee-ts]: Full rgb or r g b is not provided.');
     }
 
-    if (r < 0 || r > 256) {
-      throw new RangeError('[yee-ts]: Red value must be in range between 0 - 256');
-    } else if (g < 0 || g > 256) {
-      throw new RangeError('[yee-ts]: Gren value must be in range between 0 - 256');
-    } else if (b < 0 || b > 256) {
-      throw new RangeError('[yee-ts]: Blue value must be in range between 0 - 256');
+    const payload = { method: `${isBg ? 'bg_' : ''}set_rgb`, params: [rgb, effect, duration] };
+
+    if (isTest) {
+      return payload;
     }
 
-    const rgb = (r * 65536) + (g * 256) + b;
-
-    params = params || [];
-    params.unshift(rgb);
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_rgb`, params });
+    return await this._sendCommand(payload);
   }
 
-  async setHsv(hue: number, sat: number, params?: any[], isBg?: false) {
-    this._ensurePowerOn();
+  async set_hsv({ hue, sat, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetHsv) {
+    this._ensurePower(true);
 
-    if (hue < 0 || hue > 359) {
-      throw new RangeError('[yee-ts]: Hue value must be in range between 0 - 359');
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
+
+    const payload = { method: `${isBg ? 'bg_' : ''}set_hsv`, params: [hue, sat, effect, duration] };
+
+    if (isTest) {
+      return payload;
     }
 
-    if (sat < 0 || sat > 100) {
-      throw new RangeError('[yee-ts]: Sat value must be in range between 0 - 100');
+    return await this._sendCommand(payload);
+  }
+
+  async set_bright({ bright, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetBright) {
+    this._ensurePower(true);
+    handler.brightCheckRange(bright);
+
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
+
+    const payload = { method: `${isBg ? 'bg_' : ''}set_bright`, params: [bright, effect, duration] };
+
+    if (isTest) {
+      return payload;
     }
 
-    params = params || [];
-    params.unshift('');
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_hsv`, params });
+    return await this._sendCommand(payload);
   }
 
-  async setBright(brightness: number, params?: any[], isBg?: false) {
-    this._ensurePowerOn();
+  // async turnOn(params?: any[], isBg?: false) {
+  //   if (this.device.power === true) {
+  //     console.log('[yee-ts]: power is already on');
+  //     return true;
+  //   }
 
-    if (brightness < 1 || brightness > 100) {
-      throw new RangeError('[yee-ts]: Bright value must be in range between 1 - 100');
-    }
+  //   params = params || [];
+  //   params.unshift('on');
 
-    params = params || [];
-    params.unshift(brightness);
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_bright`, params });
-  }
-
-  async turnOn(params?: any[], isBg?: false) {
-    if (this.device.power === true) {
-      console.log('[yee-ts]: power is already on');
-      return true;
-    }
-
-    params = params || [];
-    params.unshift('on');
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
-  }
-
-  async turnOff(params?: any[], isBg?: false) {
-    if (this.device.power === false) {
-      console.log('[yee-ts]: power is already off');
-      return true;
-    }
-
-    params = params || [];
-    params.unshift('off');
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
-  }
-
-  async toggle(isBg?: false) {
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}toggle`, params: [], });
-  }
-
-  async setDefault(isBg?: false) {
-    this._ensurePowerOn();
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_default`, params: [] });
-  }
-
-  async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string, isBg?: false) {
-    this._ensurePowerOn();
-
-    if (!Array.isArray(flow)) {
-      return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow] });
-    }
-
-    const flow_exp: string[] = [];
-    flow.forEach(fl => {
-      if (fl.brightness < 1 || fl.brightness > 100) {
-        throw new RangeError('[yee-ts]: Flow brightness must be in range between 1 - 100');
-      }
-
-      if (fl.duration < 50) {
-        throw new RangeError('[yee-ts]: Flow duration must be more than 50ms');
-      }
-
-      if (fl.mode === 1) {
-        if (fl.value < 0 || fl.value > 16777215) {
-          throw new RangeError('[yee-ts]: Flow RGB (mode 1) must be in range between 0 - 16777215');
-        }
-      } else if (fl.mode === 2) {
-        if (fl.value < 1700 || fl.value > 6500) {
-          throw new RangeError('[yee-ts]: Flow CT (mode 2) must be in range between 1700 - 6500');
-        }
-      }
-
-      flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
-    });
-
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}start_cf`, params: [repeat, action, flow_exp.join(',')] });
-  }
-
-  async stopCf(isBg?: false) {
-    return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}stop_cf`, params: [] });
-  }
-
-  async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[], isBg?: false) {
-    if (scene === 'color') {
-      await this.setRgb(params[0], 0, 0, 0);
-      return await this.setBright(params[1], [], isBg);
-    } else if (scene === 'hsv') {
-      await this.setHsv(params[0], params[1]);
-      return await this.setBright(params[2], [], isBg);
-    } else if (scene === 'ct') {
-      await this.setCtAbx(params[0]);
-      return await this.setBright(params[1], [], isBg);
-    } else if (scene === 'cf') {
-      await this.startCf(params[0], params[1], params[2]);
-      return await this.setBright(params[3], [], isBg);
-    } else if (scene === 'auto_delay_off') {
-      setTimeout(() => {
-        this.device.power = false;
-      }, params[1]);
-      return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_scene`, params: ['auto_delay_off', params[0], params[1]] });
-    }
-  }
-
-  // TODO Create and operate own TCP server, see set_music prop in yeelight api
-  // createMusicModeServer(host = '0.0.0.0', port = 48925): IMusicServer {
-  //   return { server: new net.Server(), port, host };
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
   // }
 
-  // async turnOnMusicMode({ server, host, port }: IMusicServer, props?: ISendCommandProps) {
-  //   this.device.musicMode = true;
-  //   this.musicServer = server;
-  //   server.listen({
-  //     port,
-  //     host
+  // async turnOff(params?: any[], isBg?: false) {
+  //   if (this.device.power === false) {
+  //     console.log('[yee-ts]: power is already off');
+  //     return true;
+  //   }
+
+  //   params = params || [];
+  //   params.unshift('off');
+
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
+  // }
+
+  // async toggle(isBg?: false) {
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}toggle`, params: [], });
+  // }
+
+  // async setDefault(isBg?: false) {
+  //   this._ensurePowerOn();
+
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_default`, params: [] });
+  // }
+
+  // async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string, isBg?: false) {
+  //   this._ensurePowerOn();
+
+  //   if (!Array.isArray(flow)) {
+  //     return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow] });
+  //   }
+
+  //   const flow_exp: string[] = [];
+  //   flow.forEach(fl => {
+  //     if (fl.brightness < 1 || fl.brightness > 100) {
+  //       throw new RangeError('[yee-ts]: Flow brightness must be in range between 1 - 100');
+  //     }
+
+  //     if (fl.duration < 50) {
+  //       throw new RangeError('[yee-ts]: Flow duration must be more than 50ms');
+  //     }
+
+  //     if (fl.mode === 1) {
+  //       if (fl.value < 0 || fl.value > 16777215) {
+  //         throw new RangeError('[yee-ts]: Flow RGB (mode 1) must be in range between 0 - 16777215');
+  //       }
+  //     } else if (fl.mode === 2) {
+  //       if (fl.value < 1700 || fl.value > 6500) {
+  //         throw new RangeError('[yee-ts]: Flow CT (mode 2) must be in range between 1700 - 6500');
+  //       }
+  //     }
+
+  //     flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
   //   });
 
-  //   return await this._sendCommand({ method: 'set_music', params: [1, host, port] }, props);
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}start_cf`, params: [repeat, action, flow_exp.join(',')] });
+  // }
+
+  // async stopCf(isBg?: false) {
+  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}stop_cf`, params: [] });
+  // }
+
+  // async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[], isBg?: false) {
+  //   if (scene === 'color') {
+  //     await this.setRgb(params[0], 0, 0, 0);
+  //     return await this.setBright(params[1], [], isBg);
+  //   } else if (scene === 'hsv') {
+  //     await this.setHsv(params[0], params[1]);
+  //     return await this.setBright(params[2], [], isBg);
+  //   } else if (scene === 'ct') {
+  //     await this.setCtAbx(params[0]);
+  //     return await this.setBright(params[1], [], isBg);
+  //   } else if (scene === 'cf') {
+  //     await this.startCf(params[0], params[1], params[2]);
+  //     return await this.setBright(params[3], [], isBg);
+  //   } else if (scene === 'auto_delay_off') {
+  //     setTimeout(() => {
+  //       this.device.power = false;
+  //     }, params[1]);
+  //     return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_scene`, params: ['auto_delay_off', params[0], params[1]] });
+  //   }
   // }
 }
 

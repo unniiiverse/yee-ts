@@ -33,32 +33,6 @@ async function bar() {
 }
 ```
 
-## Available methods
-| Method | Implemented | Param 1 | Param 2 | Param 3 | Param 4 |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| get_prop | getProp (Takes data from storage, not bulb) | - | - | - | - |
-| set_ct_abx | setCtAbx | CLAIMED(ct) | effect | duration | - |
-| set_rgb | setRgb | CLAIMED(rgb) | effect | duration | - |
-| set_hsv | setHsv | CLAIMED(hue) | CLAIMED(sat) | effect | duration |
-| set_bright | setBright | CLAIMED(bright) | effect | duration | - |
-| set_power | turnOn / turnOff | CLAIMED(on/off) | effect | duration | mode |
-| toggle | toggle | - | - | - | - |
-| set_default | setDefault | - | - | - | - |
-| start_cf | startCf | CLAIMED(count) | CLAIMED(action) | CLAIMED(flow) | - |
-| stop_cf | stopCf | - | - | - | - |
-| set_scene | setScene | CLAIMED(class) | - | - | - |
-| cron_add | NONE | - | - | - | - |
-| cron_get | NONE | - | - | - | - |
-| cron_del | NONE | - | - | - | - |
-| set_adjust | NONE | - | - | - | - |
-| set_music | NONE | - | - | - | - |
-| set_name | NONE | - | - | - | - |
-| dev_toggle | NONE | - | - | - | - |
-| adjust_bright | NONE | - | - | - | - |
-| adjust_ct | NONE | - | - | - | - |
-| adjust_color | NONE | - | - | - | - |
-To send bg command, set isBg to true
-
 ## API
 ```ts
 import { Yeelight, Storage } from 'yee-ts'
@@ -77,6 +51,35 @@ new Yeelight().createDevice()
   . // Listed in available methods
 ```
 
+### Device default params
+```ts
+const deviceDefaultParams: IDeviceParams = {
+  writeTimeoutMs: 5000,
+  writeSocketPort: 55439,
+  listenSocketPort: 55429,
+  defaultEffect: 'smooth',
+  effectDuration: 300,
+};
+```
+
+### Full api is too large, use typescript, please
+
+## Handlers
+```ts
+// ct < 1700 | > 6500 = range error / true
+ctCheckRange(ct: number)
+// full < 0 | > 16777215 or rgb < 0 | > 255 = range error / true. Full code is more priotired.
+rgbCheckRange(full: number | null, r: number, g: number, b: number)
+// hue < 0 || hue > 359 = range error / true
+hueCheckRange(hue: number)
+// sat < 0 || sat > 100 = range error / true
+satCheckRange(sat: number)
+
+
+// converts rgb to full number ((r * 65536) + (g * 256) + b)
+rgbToFull(r: number, g: number, b: number)
+```
+
 ## Events
 ```ts
 interface IDeviceEmitter {
@@ -93,5 +96,5 @@ npm i yee-ts
 <hr>
 
 License: MIT <br>
-Last update: 1.2.2 <br>
+Last update: 1.3.0<br>
 unniiiverse 2023 

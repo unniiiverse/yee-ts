@@ -36,3 +36,33 @@ export interface IColorFlow {
   value: number,
   brightness: number
 }
+
+
+export type TDeviceEffect = 'smooth' | 'sudden';
+
+interface IDeviceDefault {
+  isBg?: boolean,
+  isTest?: boolean,
+  effect?: TDeviceEffect,
+  duration?: number,
+}
+
+export interface IDeviceSetCtAbx extends IDeviceDefault {
+  ct: number,
+}
+
+export interface IDeviceSetRgb extends IDeviceDefault {
+  full?: number,
+  r?: number,
+  g?: number,
+  b?: number,
+}
+
+export interface IDeviceSetHsv extends IDeviceDefault {
+  hue: number,
+  sat: number
+}
+
+export interface IDeviceSetBright extends IDeviceDefault {
+  bright: number,
+}
