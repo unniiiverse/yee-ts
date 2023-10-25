@@ -49,5 +49,6 @@ export function brightCheckRange(bright: number): boolean {
 }
 
 export function rgbToFull(r: number, g: number, b: number): number {
+  rgbCheckRange(null, r, g, b);
   return (r * 65536) + (g * 256) + b;
 }
