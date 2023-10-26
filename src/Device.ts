@@ -32,6 +32,7 @@ const deviceDefaultParams: IDeviceParams = {
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
   private cmdId = 1;
+  private listenSocketRetry = 0;
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
@@ -55,39 +56,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
     this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
 
-    const listenSocket = this._createSocket(this.params.listenSocketPort);
-    listenSocket.setKeepAlive(true);
-
-    listenSocket.on('data', payload => {
-      const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
-
-      for (const key in data.params) {
-        this.device[key] = data.params[key];
-      }
-
-      // Rewrite auto field
-      if (data.params.power === 'on') {
-        this.device.power = true;
-      } else if (data.params.power === 'off') {
-        this.device.power = false;
-      }
-
-      if (data.params.flowing || data.params.flow_params) {
-        this.device.flowing = true;
-      } else {
-        this.device.flowing = false;
-      }
-
-      this.emit('response', data, this.device);
-
-      if (isDev) {
-        console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
-      }
-    });
-
-    listenSocket.on('error', e => {
-      throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
-    });
+    this._listenConnect();
   }
 
   private async _sendCommand(command: { method: string, params: any }): Promise<boolean> {
@@ -137,6 +106,49 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     if (this.device.power !== val) {
       throw new TypeError(`[yee-ts]: Device must be ${val}, or provide power state in storage.`);
     }
+  }
+
+  private _listenConnect() {
+    const listenSocket = this._createSocket(this.params.listenSocketPort);
+    listenSocket.setKeepAlive(true);
+
+    listenSocket.on('data', payload => {
+      const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+
+      for (const key in data.params) {
+        this.device[key] = data.params[key];
+      }
+
+      // Rewrite auto field
+      if (data.params.power === 'on') {
+        this.device.power = true;
+      } else if (data.params.power === 'off') {
+        this.device.power = false;
+      }
+
+      if (data.params.flowing || data.params.flow_params) {
+        this.device.flowing = true;
+      } else {
+        this.device.flowing = false;
+      }
+
+      this.emit('response', data, this.device);
+
+      if (isDev) {
+        console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
+      }
+    });
+
+    listenSocket.on('error', e => {
+      if (this.listenSocketRetry < 3) {
+        listenSocket.destroy();
+        this._listenConnect();
+        this.listenSocketRetry++;
+        throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
+      } else {
+        throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
+      }
+    });
   }
 
 

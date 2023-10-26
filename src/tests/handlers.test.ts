@@ -1,6 +1,6 @@
 import * as handler from '../deviceHandlers';
 
-describe('Test handlers', () => {
+describe('Handlers', () => {
   describe('ctCheckRange', () => {
     test('return true', () => {
       expect(handler.ctCheckRange(2000)).toBe(true);
