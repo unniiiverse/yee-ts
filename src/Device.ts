@@ -453,6 +453,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
+  //! Throws socket timeout
   async cron_get({ isBg, isTest, type }: IDeviceCron) {
     const payload = { method: `cron_get`, params: [type] };
 
@@ -465,6 +466,42 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
   async cron_del({ isBg, isTest, type }: IDeviceCron) {
     const payload = { method: `cron_del`, params: [type] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async set_adjust({ action, prop, isBg, isTest }: IDeviceSetAdjust) {
+    const payload = { method: `${isBg ? 'bg_' : ''}set_adjust`, params: [action, prop] };
+
+    if (prop === 'color' && action !== 'circle') {
+      throw new TypeError(`[yee-ts]: when "prop" is "color", the "action" can only be
+      "circle", otherwise, it will be deemed as invalid request.`);
+    }
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  //TODO
+  // async set_music({ isBg, isTest }: IDeviceDefault) {
+  //   const payload = { method: `set_music`, params: [] };
+
+  //   if (isTest) {
+  //     return payload;
+  //   }
+
+  //   return await this._sendCommand(payload);
+  // }
+
+  async set_name({ name, isBg, isTest }: IDeviceSetName) {
+    const payload = { method: `set_name`, params: [name] };
 
     if (isTest) {
       return payload;
@@ -544,6 +581,19 @@ interface IDeviceCronAdd extends IDeviceDefault {
 
 interface IDeviceCron extends IDeviceDefault {
   type: TDeviceCronType
+}
+
+interface IDeviceSetAdjust extends IDeviceDefault {
+  action: 'increase' | 'decrease' | 'circle',
+  prop: 'bright' | 'ct' | 'color'
+}
+
+interface IDeviceSetMusic extends IDeviceDefault {
+  type: TDeviceCronType
+}
+
+interface IDeviceSetName extends IDeviceDefault {
+  name: string
 }
 
 

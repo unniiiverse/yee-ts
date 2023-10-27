@@ -337,4 +337,42 @@ describe('Device', () => {
       });
     });
   });
+
+  describe('set_adjust', () => {
+    test('success set', async () => {
+      expect(await device.set_adjust({
+        action: 'increase',
+        prop: 'bright',
+        isTest: true
+      })).toStrictEqual({
+        method: 'set_adjust',
+        params: ['increase', 'bright']
+      });
+    });
+
+    test('failed set', async () => {
+      try {
+        await device.set_adjust({
+          action: 'decrease',
+          prop: 'color',
+          isTest: true
+        });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect(true).toBe(true);
+      }
+    });
+  });
+
+  describe('set_name', () => {
+    test('set name', async () => {
+      expect(await device.set_name({
+        name: 'haha',
+        isTest: true
+      })).toStrictEqual({
+        method: 'set_name',
+        params: ['haha']
+      });
+    });
+  });
 });
