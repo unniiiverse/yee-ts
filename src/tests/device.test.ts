@@ -166,7 +166,7 @@ describe('Device', () => {
     });
   });
 
-  describe('set_power (turnOn/off)', () => {
+  describe('set_power (turn_on/off)', () => {
     test('turn on (success)', async () => {
       const device = new Device('foo', new Storage([{
         id: 'foo',
@@ -176,7 +176,7 @@ describe('Device', () => {
         isTest: true
       });
 
-      expect(await device.turnOn({
+      expect(await device.turn_on({
         isTest: true
       })).toStrictEqual({
         method: 'set_power',
@@ -185,13 +185,13 @@ describe('Device', () => {
     });
 
     test('turn on (already on)', async () => {
-      expect(await device.turnOn({
+      expect(await device.turn_on({
         isTest: true
       })).toBe(true);
     });
 
     test('turn off (success)', async () => {
-      expect(await device.turnOff({
+      expect(await device.turn_off({
         isTest: true
       })).toStrictEqual({
         method: 'set_power',
@@ -206,6 +206,82 @@ describe('Device', () => {
         isTest: true
       })).toStrictEqual({
         method: 'toggle',
+        params: []
+      });
+    });
+  });
+
+  describe('set_default', () => {
+    test('return payload (success)', async () => {
+      expect(await device.set_default({
+        isTest: true
+      })).toStrictEqual({
+        method: 'set_default',
+        params: []
+      });
+    });
+  });
+
+  describe('start_cf', () => {
+    test('success with custom flow', async () => {
+      expect(await device.start_cf({
+        action: 0,
+        flow: [
+          {
+            brightness: 50,
+            duration: 100,
+            mode: 1,
+            value: 53689
+          }
+        ],
+        repeat: 0,
+        isTest: true
+      })).toStrictEqual({
+        method: 'start_cf',
+        params: [0, 0, '100,1,53689,50']
+      });
+    });
+
+    test('success with full flow', async () => {
+      expect(await device.start_cf({
+        action: 0,
+        flow: '100,1,53689,50',
+        repeat: 0,
+        isTest: true
+      })).toStrictEqual({
+        method: 'start_cf',
+        params: [0, 0, '100,1,53689,50']
+      });
+    });
+
+    test('throw an error', async () => {
+      try {
+        await device.start_cf({
+          action: 0,
+          flow: [
+            {
+              brightness: 50,
+              duration: 40,
+              mode: 2,
+              value: 53689
+            }
+          ],
+          repeat: 0,
+          isTest: true
+        });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect(true).toBe(true);
+      }
+    });
+  });
+
+  describe('stop_cf', () => {
+    test('return payload (success)', async () => {
+      expect(await device.stop_cf({
+        isTest: true
+      })).toStrictEqual({
+        method: 'stop_cf',
         params: []
       });
     });

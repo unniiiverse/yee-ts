@@ -258,7 +258,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async turnOn({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
+  async turn_on({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
     if (this.device.power === true) {
       if (!isTest && !this.params.isTest) {
         console.log('[yee-ts]: power is already on');
@@ -279,7 +279,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async turnOff({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
+  async turn_off({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
     if (this.device.power === false) {
       if (!isTest || !this.params.isTest) {
         console.log('[yee-ts]: power is already off');
@@ -310,48 +310,66 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  // async setDefault(isBg?: false) {
-  //   this._ensurePowerOn();
+  async set_default({ isBg, isTest }: IDeviceDefault) {
+    this._ensurePower(true);
 
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_default`, params: [] });
-  // }
+    const payload = { method: `${isBg ? 'bg_' : ''}set_default`, params: [] };
 
-  // async startCf(repeat: number, action: 0 | 1 | 2, flow: IColorFlow[] | string, isBg?: false) {
-  //   this._ensurePowerOn();
+    if (isTest) {
+      return payload;
+    }
 
-  //   if (!Array.isArray(flow)) {
-  //     return await this._sendCommand({ method: 'start_cf', params: [repeat, action, flow] });
-  //   }
+    return await this._sendCommand(payload);
+  }
 
-  //   const flow_exp: string[] = [];
-  //   flow.forEach(fl => {
-  //     if (fl.brightness < 1 || fl.brightness > 100) {
-  //       throw new RangeError('[yee-ts]: Flow brightness must be in range between 1 - 100');
-  //     }
+  async start_cf({ action, flow, repeat, isBg, isTest }: IDeviceStartCf) {
+    this._ensurePower(true);
 
-  //     if (fl.duration < 50) {
-  //       throw new RangeError('[yee-ts]: Flow duration must be more than 50ms');
-  //     }
+    if (!Array.isArray(flow)) {
+      const payload = { method: 'start_cf', params: [repeat, action, flow] };
 
-  //     if (fl.mode === 1) {
-  //       if (fl.value < 0 || fl.value > 16777215) {
-  //         throw new RangeError('[yee-ts]: Flow RGB (mode 1) must be in range between 0 - 16777215');
-  //       }
-  //     } else if (fl.mode === 2) {
-  //       if (fl.value < 1700 || fl.value > 6500) {
-  //         throw new RangeError('[yee-ts]: Flow CT (mode 2) must be in range between 1700 - 6500');
-  //       }
-  //     }
+      if (isTest) {
+        return payload;
+      }
 
-  //     flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
-  //   });
+      return await this._sendCommand(payload);
+    }
 
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}start_cf`, params: [repeat, action, flow_exp.join(',')] });
-  // }
+    const flow_exp: string[] = [];
+    flow.forEach(fl => {
+      handler.brightCheckRange(fl.brightness);
 
-  // async stopCf(isBg?: false) {
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}stop_cf`, params: [] });
-  // }
+      if (fl.duration < 50) {
+        throw new RangeError('[yee-ts]: Flow duration must be more than 50ms');
+      }
+
+      if (fl.mode === 1) {
+        handler.rgbCheckRange(fl.value, 0, 0, 0);
+      } else if (fl.mode === 2) {
+        handler.ctCheckRange(fl.value);
+      }
+
+      flow_exp.push(`${fl.duration},${fl.mode},${fl.value},${fl.brightness}`);
+    });
+
+    const payload = { method: `${isBg ? 'bg_' : ''}start_cf`, params: [repeat, action, flow_exp.join(',')] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async stop_cf({ isBg, isTest }: IDeviceDefault) {
+    const payload = { method: `${isBg ? 'bg_' : ''}stop_cf`, params: [] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
 
   // async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[], isBg?: false) {
   //   if (scene === 'color') {
@@ -412,5 +430,12 @@ interface IDeviceSetPower extends IDeviceDefaultWEffect {
 interface IDeviceToggle extends IDeviceDefault {
   isDev?: boolean
 }
+
+interface IDeviceStartCf extends IDeviceDefault {
+  repeat: number,
+  action: 0 | 1 | 2,
+  flow: IColorFlow[] | string
+}
+
 
 export default Device;
