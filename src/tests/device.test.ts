@@ -291,7 +291,9 @@ describe('Device', () => {
     test('success', async () => {
       expect(await device.set_scene({
         scene: 'cf',
-        vals: [0, 0, '100,1,53689,50'],
+        cfRepeat: 0,
+        cfAction: 0,
+        cfFlow: '100,1,53689,50',
         isTest: true
       })).toStrictEqual({
         method: 'start_cf',
@@ -303,13 +305,36 @@ describe('Device', () => {
       try {
         await device.set_scene({
           scene: 'hsv',
-          vals: [213],
+          hue: 415,
           isTest: true
         });
         expect(true).toBe(false);
       } catch (e) {
         expect(true).toBe(true);
       }
+    });
+  });
+
+  describe('cron', () => {
+    test('add', async () => {
+      expect(await device.cron_add({
+        delayMins: 10,
+        type: 0,
+        isTest: true
+      })).toStrictEqual({
+        method: 'cron_add',
+        params: [0, 10]
+      });
+    });
+
+    test('del', async () => {
+      expect(await device.cron_del({
+        type: 0,
+        isTest: true
+      })).toStrictEqual({
+        method: 'cron_del',
+        params: [0]
+      });
     });
   });
 });

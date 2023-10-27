@@ -2,7 +2,7 @@ import net from 'node:net';
 
 export type TYeeDeviceModel = 'colorb' | string;
 export type TYeeDeviceColorMode = 1 | 2 | 3;
-export type TYeeDeviceProps = 'id' | 'ip' | 'port' | 'model' | 'power' | 'bright' | 'color_mode' | 'ct' | 'rgb' | 'hue' | 'sat' | 'name'
+export type TYeeDeviceProps = 'id' | 'ip' | 'port' | 'model' | 'power' | 'bright' | 'color_mode' | 'ct' | 'rgb' | 'hue' | 'sat' | 'name' | 'fw' | 'flow_params' | 'flowing' | 'musicmode' | 'delayoff'
 
 export interface IYeeDevice {
   id: string,
@@ -20,8 +20,8 @@ export interface IYeeDevice {
   fw?: number,
   flow_params?: string,
   flowing?: boolean,
-  musicMode?: boolean,
-  delayOff?: number
+  musicmode?: boolean,
+  delayoff?: number
 }
 
 export interface IColorFlow {

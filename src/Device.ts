@@ -371,12 +371,16 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async set_scene({ scene, vals, isBg, isTest }: IDeviceSetScene) {
+  async set_scene({ scene, hue, rgb, sat, ct, bright, cfAction, cfFlow, cfRepeat, delayMins, isBg, isTest }: IDeviceSetScene) {
     if (scene === 'color') {
-      const payload = { method: 'color', params: vals };
+      const payload = { method: 'color', params: [rgb, bright] };
 
-      handler.rgbCheckRange(vals[0], 0, 0, 0);
-      handler.brightCheckRange(vals[1]);
+      if (!rgb || !bright) {
+        throw new TypeError('[yee-ts]: rgb or bright are not provided');
+      }
+
+      handler.rgbCheckRange(rgb, 0, 0, 0);
+      handler.brightCheckRange(bright);
 
       if (isTest) {
         return payload;
@@ -385,11 +389,15 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
       return await this._sendCommand(payload);
     } else if (scene === 'hsv') {
-      const payload = { method: 'hsv', params: vals };
+      const payload = { method: 'hsv', params: [hue, sat, bright] };
 
-      handler.hueCheckRange(vals[0]);
-      handler.satCheckRange(vals[1]);
-      handler.brightCheckRange(vals[2]);
+      if (!hue || !sat || !bright) {
+        throw new TypeError('[yee-ts]: hue or sat or bright are not provided');
+      }
+
+      handler.hueCheckRange(hue);
+      handler.satCheckRange(sat);
+      handler.brightCheckRange(bright);
 
       if (isTest) {
         return payload;
@@ -397,10 +405,14 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
       return await this._sendCommand(payload);
     } else if (scene === 'ct') {
-      const payload = { method: 'ct', params: vals };
+      const payload = { method: 'ct', params: [ct] };
 
-      handler.ctCheckRange(vals[0]);
-      handler.brightCheckRange(vals[1]);
+      if (!ct || !bright) {
+        throw new TypeError('[yee-ts]: ct or bright are not provided');
+      }
+
+      handler.ctCheckRange(ct);
+      handler.brightCheckRange(bright);
 
       if (isTest) {
         return payload;
@@ -408,9 +420,19 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
       return await this._sendCommand(payload);
     } else if (scene === 'cf') {
-      return await this.start_cf({ repeat: vals[0], action: vals[1], flow: vals[2], isTest, isBg });
+      if (cfRepeat === undefined || cfAction === undefined || !cfFlow) {
+        throw new TypeError('[yee-ts]: repeat or action or flow are not provided');
+      }
+
+      return await this.start_cf({ repeat: cfRepeat, action: cfAction, flow: cfFlow, isTest, isBg });
     } else if (scene === 'auto_delay_off') {
-      const payload = { method: 'auto_delay_off', params: vals };
+      const payload = { method: 'auto_delay_off', params: [delayMins, bright] };
+
+      if (!delayMins || !bright) {
+        throw new TypeError('[yee-ts]: delay or bright are not provided');
+      }
+
+      handler.brightCheckRange(bright);
 
       if (isTest) {
         return payload;
@@ -419,7 +441,40 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       return await this._sendCommand(payload);
     }
   }
+
+  async cron_add({ isBg, isTest, delayMins, type }: IDeviceCronAdd) {
+    this._ensurePower(true);
+    const payload = { method: `cron_add`, params: [type, delayMins] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async cron_get({ isBg, isTest, type }: IDeviceCron) {
+    const payload = { method: `cron_get`, params: [type] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async cron_del({ isBg, isTest, type }: IDeviceCron) {
+    const payload = { method: `cron_del`, params: [type] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
 }
+
+
 
 type TDeviceScenes = 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off';
 
@@ -469,7 +524,26 @@ interface IDeviceStartCf extends IDeviceDefault {
 
 interface IDeviceSetScene extends IDeviceDefault {
   scene: TDeviceScenes,
-  vals: any[]
+  hue?: number,
+  sat?: number,
+  rgb?: number,
+  bright?: number,
+  ct?: number,
+  cfRepeat?: number,
+  cfAction?: 0 | 1 | 2,
+  cfFlow?: IColorFlow[] | string,
+  delayMins?: number
+}
+
+type TDeviceCronType = 0;
+
+interface IDeviceCronAdd extends IDeviceDefault {
+  type: TDeviceCronType,
+  delayMins: number
+}
+
+interface IDeviceCron extends IDeviceDefault {
+  type: TDeviceCronType
 }
 
 
