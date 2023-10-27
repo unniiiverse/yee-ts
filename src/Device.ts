@@ -371,27 +371,57 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  // async setScene(scene: 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off', params: any[], isBg?: false) {
-  //   if (scene === 'color') {
-  //     await this.setRgb(params[0], 0, 0, 0);
-  //     return await this.setBright(params[1], [], isBg);
-  //   } else if (scene === 'hsv') {
-  //     await this.setHsv(params[0], params[1]);
-  //     return await this.setBright(params[2], [], isBg);
-  //   } else if (scene === 'ct') {
-  //     await this.setCtAbx(params[0]);
-  //     return await this.setBright(params[1], [], isBg);
-  //   } else if (scene === 'cf') {
-  //     await this.startCf(params[0], params[1], params[2]);
-  //     return await this.setBright(params[3], [], isBg);
-  //   } else if (scene === 'auto_delay_off') {
-  //     setTimeout(() => {
-  //       this.device.power = false;
-  //     }, params[1]);
-  //     return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_scene`, params: ['auto_delay_off', params[0], params[1]] });
-  //   }
-  // }
+  async set_scene({ scene, vals, isBg, isTest }: IDeviceSetScene) {
+    if (scene === 'color') {
+      const payload = { method: 'color', params: vals };
+
+      handler.rgbCheckRange(vals[0], 0, 0, 0);
+      handler.brightCheckRange(vals[1]);
+
+      if (isTest) {
+        return payload;
+      }
+
+
+      return await this._sendCommand(payload);
+    } else if (scene === 'hsv') {
+      const payload = { method: 'hsv', params: vals };
+
+      handler.hueCheckRange(vals[0]);
+      handler.satCheckRange(vals[1]);
+      handler.brightCheckRange(vals[2]);
+
+      if (isTest) {
+        return payload;
+      }
+
+      return await this._sendCommand(payload);
+    } else if (scene === 'ct') {
+      const payload = { method: 'ct', params: vals };
+
+      handler.ctCheckRange(vals[0]);
+      handler.brightCheckRange(vals[1]);
+
+      if (isTest) {
+        return payload;
+      }
+
+      return await this._sendCommand(payload);
+    } else if (scene === 'cf') {
+      return await this.start_cf({ repeat: vals[0], action: vals[1], flow: vals[2], isTest, isBg });
+    } else if (scene === 'auto_delay_off') {
+      const payload = { method: 'auto_delay_off', params: vals };
+
+      if (isTest) {
+        return payload;
+      }
+
+      return await this._sendCommand(payload);
+    }
+  }
 }
+
+type TDeviceScenes = 'color' | 'hsv' | 'ct' | 'cf' | 'auto_delay_off';
 
 interface IDeviceDefault {
   isBg?: boolean,
@@ -435,6 +465,11 @@ interface IDeviceStartCf extends IDeviceDefault {
   repeat: number,
   action: 0 | 1 | 2,
   flow: IColorFlow[] | string
+}
+
+interface IDeviceSetScene extends IDeviceDefault {
+  scene: TDeviceScenes,
+  vals: any[]
 }
 
 

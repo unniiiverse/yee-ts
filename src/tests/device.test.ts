@@ -286,4 +286,30 @@ describe('Device', () => {
       });
     });
   });
+
+  describe('set_scene', () => {
+    test('success', async () => {
+      expect(await device.set_scene({
+        scene: 'cf',
+        vals: [0, 0, '100,1,53689,50'],
+        isTest: true
+      })).toStrictEqual({
+        method: 'start_cf',
+        params: [0, 0, '100,1,53689,50']
+      });
+    });
+
+    test('throw an error', async () => {
+      try {
+        await device.set_scene({
+          scene: 'hsv',
+          vals: [213],
+          isTest: true
+        });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect(true).toBe(true);
+      }
+    });
+  });
 });
