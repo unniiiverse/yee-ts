@@ -6,7 +6,9 @@ describe('Device', () => {
     id: 'foo',
     ip: '192.168.0.201',
     power: true,
-  }]));
+  }]), {
+    isTest: true
+  });
 
   describe('device tests', () => {
     test('device creating successfully', () => {
@@ -161,6 +163,51 @@ describe('Device', () => {
       } catch (e) {
         expect(true).toBe(true);
       }
+    });
+  });
+
+  describe('set_power (turnOn/off)', () => {
+    test('turn on (success)', async () => {
+      const device = new Device('foo', new Storage([{
+        id: 'foo',
+        ip: '192.168.0.201',
+        power: false,
+      }]), {
+        isTest: true
+      });
+
+      expect(await device.turnOn({
+        isTest: true
+      })).toStrictEqual({
+        method: 'set_power',
+        params: ['on', 'smooth', 300, 0]
+      });
+    });
+
+    test('turn on (already on)', async () => {
+      expect(await device.turnOn({
+        isTest: true
+      })).toBe(true);
+    });
+
+    test('turn off (success)', async () => {
+      expect(await device.turnOff({
+        isTest: true
+      })).toStrictEqual({
+        method: 'set_power',
+        params: ['off', 'smooth', 300, 0]
+      });
+    });
+  });
+
+  describe('toggle', () => {
+    test('return payload (success)', async () => {
+      expect(await device.toggle({
+        isTest: true
+      })).toStrictEqual({
+        method: 'toggle',
+        params: []
+      });
     });
   });
 });

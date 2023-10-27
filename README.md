@@ -2,19 +2,21 @@
 Simple typescript implementation of yeelight [API Docs](https://www.yeelight.com/download/Yeelight_Inter-Operation_Spec.pdf)
 
 ## Compatibility
-Package should work fine with all yeelight smart devices. Currently tested only with:
+Package should work with all yeelight smart devices. Currently tested only with:
 + Yeelight Smart Bulb W3
 
-If this package works fine with other yeelight devices, please notify me in issues.
+If this package works with other yeelight devices, please notify me in issues.
 
 ## Usage
+Make sure you turn on 3-rd party bulb control in yeelight app.
+
 ```ts
 import {Yeelight, Storage} from 'yee-ts'
 
 // Default usage (discovery provides storage)
 async function foo() {
   const yee = new Yeelight();
-  await yee.discover() // Discover yeelight devices.
+  await yee.discover() // Discover yeelight devices. Provides storage to createDevice()
 
   const device = yee.createDevice('ID') // Create device with bulb id
   await device.toggle() // Use
@@ -24,11 +26,11 @@ async function foo() {
 async function bar() {
   const yee = new Yeelight();
   const storage = new Storage([{
-      id: '123',
+      id: 'bar',
       ip: '192.168.0.1'
     }])
 
-  const device = yee.createDevice('123', storage) // Create device with bulb id
+  const device = yee.createDevice('bar', storage) // Create device with bulb id
   await device.toggle() // Use
 }
 ```
@@ -59,10 +61,12 @@ const deviceDefaultParams: IDeviceParams = {
   listenSocketPort: 55429,
   defaultEffect: 'smooth',
   effectDuration: 300,
+  defaultMode: 0,
+  isTest: false
 };
 ```
 
-### Full api is too large, use typescript, please
+### Full api is too large, so use typescript, please
 
 ## Handlers
 ```ts

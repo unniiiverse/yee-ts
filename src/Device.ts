@@ -1,19 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import Storage from './Storage';
-import { IYeeDevice, TYeeDeviceProps, IMusicServer, IColorFlow, TDeviceEffect } from './interfaces';
-import * as deviceInterface from './interfaces';
+import { IYeeDevice, TYeeDeviceProps, IColorFlow, TDeviceEffect } from './interfaces';
 import net from 'node:net';
 import { isDev } from './config';
 import { TypedEmitter } from 'tiny-typed-emitter';
 import * as handler from './deviceHandlers';
+
+type TDevicePowerModes = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface IDeviceParams {
   writeTimeoutMs?: number,
   writeSocketPort?: number,
   listenSocketPort?: number,
   defaultEffect?: TDeviceEffect,
-  effectDuration?: number
+  effectDuration?: number,
+  defaultMode?: TDevicePowerModes,
+  isTest?: boolean
 }
 
 interface IDeviceEmitter {
@@ -28,6 +31,8 @@ const deviceDefaultParams: IDeviceParams = {
   listenSocketPort: 55429,
   defaultEffect: 'smooth',
   effectDuration: 300,
+  defaultMode: 0,
+  isTest: false
 };
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
@@ -56,7 +61,11 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
     this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
 
-    this._listenConnect();
+    if (!this.params.isTest) {
+      this._listenConnect();
+    } else {
+      this.socket.destroy();
+    }
   }
 
   private async _sendCommand(command: { method: string, params: any }): Promise<boolean> {
@@ -109,57 +118,59 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   private _listenConnect() {
-    const listenSocket = this._createSocket(this.params.listenSocketPort);
-    listenSocket.setKeepAlive(true);
+    try {
+      const listenSocket = this._createSocket(this.params.listenSocketPort);
+      listenSocket.setKeepAlive(true);
 
-    listenSocket.on('data', payload => {
-      const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+      listenSocket.on('data', payload => {
+        const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
 
-      for (const key in data.params) {
-        this.device[key] = data.params[key];
-      }
+        for (const key in data.params) {
+          this.device[key] = data.params[key];
+        }
 
-      // Rewrite auto field
-      if (data.params.power === 'on') {
-        this.device.power = true;
-      } else if (data.params.power === 'off') {
-        this.device.power = false;
-      }
+        // Rewrite auto field
+        if (data.params.power === 'on') {
+          this.device.power = true;
+        } else if (data.params.power === 'off') {
+          this.device.power = false;
+        }
 
-      if (data.params.flowing || data.params.flow_params) {
-        this.device.flowing = true;
-      } else {
-        this.device.flowing = false;
-      }
+        if (data.params.flowing || data.params.flow_params) {
+          this.device.flowing = true;
+        } else {
+          this.device.flowing = false;
+        }
 
-      this.emit('response', data, this.device);
+        this.emit('response', data, this.device);
 
-      if (isDev) {
-        console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
-      }
-    });
+        if (isDev) {
+          console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
+        }
+      });
 
-    listenSocket.on('error', e => {
+      listenSocket.on('error', e => {
+        if (this.listenSocketRetry < 3) {
+          listenSocket.destroy();
+          this._listenConnect();
+          this.listenSocketRetry++;
+          throw new Error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
+        } else {
+          throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
+        }
+      });
+    } catch (e) {
       if (this.listenSocketRetry < 3) {
-        listenSocket.destroy();
         this._listenConnect();
         this.listenSocketRetry++;
-        throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
+        throw new Error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
       } else {
         throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
       }
-    });
+    }
   }
 
 
-
-  //* TEMPLATE
-  // async name(params?: any[]) {
-  //   params = params || [];
-  //   params.unshift('');
-
-  //   return await this._sendCommand({ method: '', params });
-  // }
 
   getDevice(): IYeeDevice {
     return this.device;
@@ -173,7 +184,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(command);
   }
 
-  async set_ct_abx({ ct, duration, effect, isBg, isTest }: deviceInterface.IDeviceSetCtAbx) {
+  async set_ct_abx({ ct, duration, effect, isBg, isTest }: IDeviceSetCtAbx) {
     this._ensurePower(true);
     handler.ctCheckRange(ct);
 
@@ -189,7 +200,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async set_rgb({ full, r, g, b, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetRgb) {
+  async set_rgb({ full, r, g, b, effect, duration, isBg, isTest }: IDeviceSetRgb) {
     this._ensurePower(true);
 
     effect = effect || this.params.defaultEffect;
@@ -216,7 +227,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async set_hsv({ hue, sat, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetHsv) {
+  async set_hsv({ hue, sat, effect, duration, isBg, isTest }: IDeviceSetHsv) {
     this._ensurePower(true);
 
     effect = effect || this.params.defaultEffect;
@@ -231,7 +242,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  async set_bright({ bright, effect, duration, isBg, isTest }: deviceInterface.IDeviceSetBright) {
+  async set_bright({ bright, effect, duration, isBg, isTest }: IDeviceSetBright) {
     this._ensurePower(true);
     handler.brightCheckRange(bright);
 
@@ -247,33 +258,57 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  // async turnOn(params?: any[], isBg?: false) {
-  //   if (this.device.power === true) {
-  //     console.log('[yee-ts]: power is already on');
-  //     return true;
-  //   }
+  async turnOn({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
+    if (this.device.power === true) {
+      if (!isTest && !this.params.isTest) {
+        console.log('[yee-ts]: power is already on');
+      }
+      return true;
+    }
 
-  //   params = params || [];
-  //   params.unshift('on');
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
+    mode = mode || this.params.defaultMode;
 
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
-  // }
+    const payload = { method: `${isBg ? 'bg_' : ''}set_power`, params: ['on', effect, duration, mode] };
 
-  // async turnOff(params?: any[], isBg?: false) {
-  //   if (this.device.power === false) {
-  //     console.log('[yee-ts]: power is already off');
-  //     return true;
-  //   }
+    if (isTest) {
+      return payload;
+    }
 
-  //   params = params || [];
-  //   params.unshift('off');
+    return await this._sendCommand(payload);
+  }
 
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_power`, params });
-  // }
+  async turnOff({ duration, effect, mode, isBg, isTest }: IDeviceSetPower) {
+    if (this.device.power === false) {
+      if (!isTest || !this.params.isTest) {
+        console.log('[yee-ts]: power is already off');
+      }
+      return true;
+    }
 
-  // async toggle(isBg?: false) {
-  //   return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}toggle`, params: [], });
-  // }
+    effect = effect || this.params.defaultEffect;
+    duration = duration || this.params.effectDuration;
+    mode = mode || this.params.defaultMode;
+
+    const payload = { method: `${isBg ? 'bg_' : ''}set_power`, params: ['off', effect, duration, mode] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async toggle({ isBg, isTest, isDev }: IDeviceToggle) {
+    const payload = { method: `${isBg ? 'bg_' : isDev ? 'dev_' : ''}toggle`, params: [] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
 
   // async setDefault(isBg?: false) {
   //   this._ensurePowerOn();
@@ -338,6 +373,44 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   //     return await this._sendCommand({ method: `${isBg ? 'bg_' : ''}set_scene`, params: ['auto_delay_off', params[0], params[1]] });
   //   }
   // }
+}
+
+interface IDeviceDefault {
+  isBg?: boolean,
+  isTest?: boolean,
+}
+
+interface IDeviceDefaultWEffect extends IDeviceDefault {
+  duration?: number,
+  effect?: TDeviceEffect
+}
+
+interface IDeviceSetCtAbx extends IDeviceDefaultWEffect {
+  ct: number,
+}
+
+interface IDeviceSetRgb extends IDeviceDefaultWEffect {
+  full?: number,
+  r?: number,
+  g?: number,
+  b?: number,
+}
+
+interface IDeviceSetHsv extends IDeviceDefaultWEffect {
+  hue: number,
+  sat: number
+}
+
+interface IDeviceSetBright extends IDeviceDefaultWEffect {
+  bright: number,
+}
+
+interface IDeviceSetPower extends IDeviceDefaultWEffect {
+  mode?: TDevicePowerModes
+}
+
+interface IDeviceToggle extends IDeviceDefault {
+  isDev?: boolean
 }
 
 export default Device;
