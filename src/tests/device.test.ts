@@ -375,4 +375,39 @@ describe('Device', () => {
       });
     });
   });
+
+  describe('adjust', () => {
+    test('bright', async () => {
+      expect(await device.adjust_bright({
+        percentage: 20,
+        duration: 500,
+        isTest: true
+      })).toStrictEqual({
+        method: 'adjust_bright',
+        params: [20, 500]
+      });
+    });
+
+    test('ct', async () => {
+      expect(await device.adjust_ct({
+        percentage: 20,
+        duration: 500,
+        isTest: true
+      })).toStrictEqual({
+        method: 'adjust_ct',
+        params: [20, 500]
+      });
+    });
+
+    test('color', async () => {
+      expect(await device.adjust_color({
+        percentage: 20,
+        duration: 500,
+        isTest: true
+      })).toStrictEqual({
+        method: 'adjust_color',
+        params: [20, 500]
+      });
+    });
+  });
 });

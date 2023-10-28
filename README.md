@@ -68,9 +68,9 @@ const deviceDefaultParams: IDeviceParams = {
 
 ### Full api is too large, so use typescript, please
 ```ts
-
 method cron_get // Throws write socket timeout on W3 bulb. Use instead set_scene('auto_delay_off')
 method get_prop // Throws write socket timeout on W3 bulb. Use instead get_prop() from storage
+method set_music // W3 bulb not connecting to music server. Behaivour is not predictable, so method is not implemented.
 ```
 
 ## Handlers

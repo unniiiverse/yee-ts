@@ -61,10 +61,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
     this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
 
+    this.socket.on('error', e => { throw new Error(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`); });
+
     if (!this.params.isTest) {
       this._listenConnect();
-    } else {
-      this.socket.destroy();
     }
   }
 
@@ -73,8 +73,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       command.params = command.params || [];
       const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
 
-      this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
-      this.socket.on('timeout', () => { reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
+      this.socket.on('timeout', () => { throw new Error(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
 
       const openingInterval = setInterval(() => {
         if (this.socket.readyState !== 'open') {
@@ -121,6 +120,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     try {
       const listenSocket = this._createSocket(this.params.listenSocketPort);
       listenSocket.setKeepAlive(true);
+      listenSocket.setTimeout(3600000);
 
       listenSocket.on('data', payload => {
         const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
@@ -149,12 +149,19 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
         }
       });
 
+      listenSocket.on('timeout', () => {
+        listenSocket.destroy();
+        this._listenConnect();
+        this.listenSocketRetry = 0;
+        console.log('[yee-ts]: listen socket reconnected due to timeout in 1hr.');
+      });
+
       listenSocket.on('error', e => {
         if (this.listenSocketRetry < 3) {
           listenSocket.destroy();
           this._listenConnect();
           this.listenSocketRetry++;
-          throw new Error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
+          console.error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
         } else {
           throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
         }
@@ -489,9 +496,9 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return await this._sendCommand(payload);
   }
 
-  //TODO
-  // async set_music({ isBg, isTest }: IDeviceDefault) {
-  //   const payload = { method: `set_music`, params: [] };
+  //TODO Implement
+  // async set_music({ isBg, isTest, action, host, port, musicSocket }: IDeviceSetMusic) {
+  //   const payload = { method: `set_music`, params: [action, host, port] };
 
   //   if (isTest) {
   //     return payload;
@@ -502,6 +509,36 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
   async set_name({ name, isBg, isTest }: IDeviceSetName) {
     const payload = { method: `set_name`, params: [name] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async adjust_bright({ percentage, duration, isBg, isTest }: IDeviceAdjust) {
+    const payload = { method: `${isBg ? 'bg_' : ''}adjust_bright`, params: [percentage, duration] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async adjust_ct({ percentage, duration, isBg, isTest }: IDeviceAdjust) {
+    const payload = { method: `${isBg ? 'bg_' : ''}adjust_ct`, params: [percentage, duration] };
+
+    if (isTest) {
+      return payload;
+    }
+
+    return await this._sendCommand(payload);
+  }
+
+  async adjust_color({ percentage, duration, isBg, isTest }: IDeviceAdjust) {
+    const payload = { method: `${isBg ? 'bg_' : ''}adjust_color`, params: [percentage, duration] };
 
     if (isTest) {
       return payload;
@@ -589,11 +626,19 @@ interface IDeviceSetAdjust extends IDeviceDefault {
 }
 
 interface IDeviceSetMusic extends IDeviceDefault {
-  type: TDeviceCronType
+  action: 0 | 1,
+  host: string,
+  port: number,
+  musicSocket?: net.Socket
 }
 
 interface IDeviceSetName extends IDeviceDefault {
   name: string
+}
+
+interface IDeviceAdjust extends IDeviceDefault {
+  percentage: number,
+  duration: number
 }
 
 
