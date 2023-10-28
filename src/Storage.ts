@@ -80,6 +80,7 @@ export class Storage {
 
   updateAll(devices: IYeeDevice[]) {
     this.storage = devices;
+    return this.storage;
   }
 }
 
