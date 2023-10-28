@@ -10,6 +10,16 @@ describe('Device', () => {
     isTest: true
   });
 
+  beforeEach(() => {
+    device.closeListenSocket();
+    device.closeWriteSocket();
+    device.updateStorage({
+      id: 'foo',
+      ip: '192.168.0.201',
+      power: true,
+    }, true)
+  })
+
   describe('device tests', () => {
     test('device creating successfully', () => {
       expect(device.getDevice()).toBeTruthy();

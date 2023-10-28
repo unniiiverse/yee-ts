@@ -50,6 +50,11 @@ new Storage(storage?: IYeeDevice[])
 
 new Yeelight().createDevice()
   .getDevice() // Get device props
+  .reconnectWriteSocket() // Reconnect write socket.
+  .reconnectListenSocket() // Reconnect listen socket.
+  .closeWriteSocket() // Close write socket.
+  .closeListenSocket() // Close listen socket.
+  .updateDevice(device: IYeeDevice, wipe?: boolean) // Rewrites old props with new, is wipe is true, will replace old storage with new. Ip and id is required.
   . // Listed in available methods
 ```
 

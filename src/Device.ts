@@ -6,6 +6,7 @@ import net from 'node:net';
 import { isDev } from './config';
 import { TypedEmitter } from 'tiny-typed-emitter';
 import * as handler from './deviceHandlers';
+import ip from 'ip';
 
 type TDevicePowerModes = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -41,6 +42,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
+  private listenSocket: net.Socket;
   private params: IDeviceParams = deviceDefaultParams;
 
   constructor(id: string, storage: Storage, params?: IDeviceParams) {
@@ -59,11 +61,17 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     this.device = device;
     this.device.id = id;
 
-    this.socket = this._createSocket(this.params.writeSocketPort, this.params.writeTimeoutMs);
-
-    this.socket.on('error', e => { throw new Error(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`); });
+    this.socket = this._createSocket(0, this.params.writeTimeoutMs);
+    this.listenSocket = this._createSocket(0, this.params.writeTimeoutMs);
 
     if (!this.params.isTest) {
+      this.listenSocket.destroy();
+      this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
+
+      this.socket.destroy();
+      this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
+      this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
+
       this._listenConnect();
     }
   }
@@ -73,7 +81,12 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       command.params = command.params || [];
       const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
 
-      this.socket.on('timeout', () => { throw new Error(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`); });
+      if (this.socket.destroyed) {
+        throw new Error('[yee-ts]: Write socket closed. Reconnect it with reconnectWriteSocket().');
+      }
+
+      this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
+      this.socket.on('timeout', () => reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`));
 
       const openingInterval = setInterval(() => {
         if (this.socket.readyState !== 'open') {
@@ -96,20 +109,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
   }
 
-  private _createSocket(port = 55439, timeout = socketDefaultTimeout): net.Socket {
-    try {
-      return net.createConnection({
-        port: 55443,
-        host: this.device.ip,
-        localAddress: '0.0.0.0',
-        localPort: port,
-        timeout,
-      });
-    } catch (e) {
-      throw new Error(`[yee-ts]: Socket error - ${JSON.stringify(e)}`);
-    }
-  }
-
   private _ensurePower(val: boolean) {
     if (this.device.power !== val) {
       throw new TypeError(`[yee-ts]: Device must be ${val}, or provide power state in storage.`);
@@ -118,7 +117,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
   private _listenConnect() {
     try {
-      const listenSocket = this._createSocket(this.params.listenSocketPort);
+      const listenSocket = this.listenSocket;
       listenSocket.setKeepAlive(true);
       listenSocket.setTimeout(3600000);
 
@@ -150,16 +149,14 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       });
 
       listenSocket.on('timeout', () => {
-        listenSocket.destroy();
-        this._listenConnect();
+        this.reconnectListenSocket();
         this.listenSocketRetry = 0;
         console.log('[yee-ts]: listen socket reconnected due to timeout in 1hr.');
       });
 
       listenSocket.on('error', e => {
         if (this.listenSocketRetry < 3) {
-          listenSocket.destroy();
-          this._listenConnect();
+          this.reconnectListenSocket();
           this.listenSocketRetry++;
           console.error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
         } else {
@@ -168,15 +165,62 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       });
     } catch (e) {
       if (this.listenSocketRetry < 3) {
-        this._listenConnect();
+        this.reconnectListenSocket();
         this.listenSocketRetry++;
-        throw new Error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
+        console.error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
       } else {
         throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
       }
     }
   }
 
+  private _createSocket(port: number, timeout = socketDefaultTimeout) {
+    return net.createConnection({
+      port: 55443,
+      host: this.device.ip,
+      localAddress: ip.address(),
+      localPort: port,
+      timeout,
+    });
+  }
+
+  closeWriteSocket(): boolean {
+    this.socket.destroy();
+    return true;
+  }
+
+  reconnectWriteSocket(): boolean {
+    this.closeWriteSocket();
+    this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
+    return true;
+  }
+
+  closeListenSocket(): boolean {
+    this.listenSocket.destroy();
+    return true;
+  }
+
+  reconnectListenSocket(): boolean {
+    this.closeListenSocket();
+    this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
+    return true;
+  }
+
+  updateStorage(device: IYeeDevice, wipe = false): boolean {
+    if (wipe) {
+      if (!device.ip || !device.id) {
+        throw new TypeError('[yee-ts]: wiping storage without provided ip and id is not possible.')
+      }
+
+      this.device = device;
+    }
+
+    for (const key in device) {
+      this.device[key] = device[key];
+    }
+
+    return true;
+  }
 
 
   getDevice(): IYeeDevice {
