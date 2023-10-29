@@ -111,5 +111,5 @@ npm i yee-ts
 <hr>
 
 License: MIT <br>
-Last update: 1.3.1<br>
+Last update: 1.3.2<br>
 unniiiverse 2023 
