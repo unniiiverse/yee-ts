@@ -17,8 +17,8 @@ describe('Device', () => {
       id: 'foo',
       ip: '192.168.0.201',
       power: true,
-    }, true)
-  })
+    }, true);
+  });
 
   describe('device tests', () => {
     test('device creating successfully', () => {

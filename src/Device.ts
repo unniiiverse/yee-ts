@@ -17,7 +17,8 @@ export interface IDeviceParams {
   defaultEffect?: TDeviceEffect,
   effectDuration?: number,
   defaultMode?: TDevicePowerModes,
-  isTest?: boolean
+  isTest?: boolean,
+  localIP?: string
 }
 
 interface IDeviceEmitter {
@@ -33,7 +34,8 @@ const deviceDefaultParams: IDeviceParams = {
   defaultEffect: 'smooth',
   effectDuration: 300,
   defaultMode: 0,
-  isTest: false
+  isTest: false,
+  localIP: ip.address('public', 'ipv4')
 };
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
@@ -111,7 +113,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
   private _ensurePower(val: boolean) {
     if (this.device.power !== val) {
-      throw new TypeError(`[yee-ts]: Device must be ${val}, or provide power state in storage.`);
+      throw new TypeError(`[yee-ts]: Device must be ${val ? 'on' : 'off'}, or provide power state in storage.`);
     }
   }
 
@@ -178,7 +180,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     return net.createConnection({
       port: 55443,
       host: this.device.ip,
-      localAddress: ip.address(),
+      localAddress: this.params.localIP,
       localPort: port,
       timeout,
     });
@@ -209,7 +211,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   updateStorage(device: IYeeDevice, wipe = false): boolean {
     if (wipe) {
       if (!device.ip || !device.id) {
-        throw new TypeError('[yee-ts]: wiping storage without provided ip and id is not possible.')
+        throw new TypeError('[yee-ts]: wiping storage without provided ip and id is not possible.');
       }
 
       this.device = device;

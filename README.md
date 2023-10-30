@@ -66,7 +66,8 @@ const deviceDefaultParams: IDeviceParams = {
   defaultEffect: 'smooth',
   effectDuration: 300,
   defaultMode: 0,
-  isTest: false
+  isTest: false,
+  localIP: '192.168.0.1' // set the public ipv4 ip
 };
 ```
 
@@ -111,5 +112,5 @@ npm i yee-ts
 <hr>
 
 License: MIT <br>
-Last update: 1.3.2<br>
+Last update: 1.3.3<br>
 unniiiverse 2023 
