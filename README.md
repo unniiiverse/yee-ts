@@ -49,11 +49,8 @@ new Storage(storage?: IYeeDevice[])
 
 new Yeelight().createDevice(id: string, storage?: Storage, params?: IDeviceParams) // new Device()
   .getDevice(): IYeeDevice // Get device
-  .reconnectWriteSocket(): boolean // Reconnect write socket.
-  .reconnectListenSocket(): boolean // Reconnect listen socket.
-  .closeWriteSocket(): boolean // Close write socket.
-  .closeListenSocket(): boolean // Close listen socket.
-  .updateStorage(device: IYeeDevice, wipe?: boolean) // Rewrites old props with new, is wipe is true, will replace old storage with new. Ip and id is required.
+  .updateStorage(device: IYeeDevice, wipe?: boolean) // Rewrites device old props with new, is wipe is true, will replace old storage with new. Ip and id is required.
+  .updateParams(params: IDeviceParams) // Rewrites class props.
   . // Implemented all methods, to use bg_ set isBg in command to true. Except methods listed below. You can see all types in yee-ts/dist/types/Device.d.ts
 ```
 
@@ -112,5 +109,5 @@ npm i yee-ts
 <hr>
 
 License: MIT <br>
-Last update: 1.3.3<br>
+Last update: 1.3.4<br>
 unniiiverse 2023 

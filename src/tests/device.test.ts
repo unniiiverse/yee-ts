@@ -7,12 +7,12 @@ describe('Device', () => {
     ip: '192.168.0.201',
     power: true,
   }]), {
-    isTest: true
+    isTest: true,
+    writeSocketPort: 0,
+    listenSocketPort: 0
   });
 
   beforeEach(() => {
-    device.closeListenSocket();
-    device.closeWriteSocket();
     device.updateStorage({
       id: 'foo',
       ip: '192.168.0.201',

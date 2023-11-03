@@ -40,7 +40,6 @@ const deviceDefaultParams: IDeviceParams = {
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
   private cmdId = 1;
-  private listenSocketRetry = 0;
   private device: IYeeDevice;
   private storage: Storage;
   private socket: net.Socket;
@@ -63,19 +62,13 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     this.device = device;
     this.device.id = id;
 
-    this.socket = this._createSocket(0, this.params.writeTimeoutMs);
-    this.listenSocket = this._createSocket(0, this.params.writeTimeoutMs);
+    //* Create sockets
+    this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
+    this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
 
-    if (!this.params.isTest) {
-      this.listenSocket.destroy();
-      this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
+    this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
 
-      this.socket.destroy();
-      this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
-      this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
-
-      this._listenConnect();
-    }
+    this._listenSocket();
   }
 
   private async _sendCommand(command: { method: string, params: any }): Promise<boolean> {
@@ -84,12 +77,13 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
 
       if (this.socket.destroyed) {
-        throw new Error('[yee-ts]: Write socket closed. Reconnect it with reconnectWriteSocket().');
+        throw new Error('[yee-ts]: Write socket closed.');
       }
 
       this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
       this.socket.on('timeout', () => reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`));
 
+      // Wait till socket will be open
       const openingInterval = setInterval(() => {
         if (this.socket.readyState !== 'open') {
           return;
@@ -113,17 +107,13 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
   private _ensurePower(val: boolean) {
     if (this.device.power !== val) {
-      throw new TypeError(`[yee-ts]: Device must be ${val ? 'on' : 'off'}, or provide power state in storage.`);
+      throw new TypeError(`[yee-ts]: Device must be ${val ? 'on' : 'off'}.`);
     }
   }
 
-  private _listenConnect() {
+  private _listenSocket() {
     try {
-      const listenSocket = this.listenSocket;
-      listenSocket.setKeepAlive(true);
-      listenSocket.setTimeout(3600000);
-
-      listenSocket.on('data', payload => {
+      this.listenSocket.on('data', payload => {
         const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
 
         for (const key in data.params) {
@@ -150,29 +140,11 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
         }
       });
 
-      listenSocket.on('timeout', () => {
-        this.reconnectListenSocket();
-        this.listenSocketRetry = 0;
-        console.log('[yee-ts]: listen socket reconnected due to timeout in 1hr.');
-      });
-
-      listenSocket.on('error', e => {
-        if (this.listenSocketRetry < 3) {
-          this.reconnectListenSocket();
-          this.listenSocketRetry++;
-          console.error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
-        } else {
-          throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
-        }
+      this.listenSocket.on('error', async e => {
+        throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
       });
     } catch (e) {
-      if (this.listenSocketRetry < 3) {
-        this.reconnectListenSocket();
-        this.listenSocketRetry++;
-        console.error(`[yee-ts]: Listen socket error (connection retried ${this.listenSocketRetry} times): ${JSON.stringify(e)}`);
-      } else {
-        throw new Error(`[yee-ts]: Listen socket error (socket retried 3 times): ${JSON.stringify(e)}`);
-      }
+      throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
     }
   }
 
@@ -186,32 +158,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
   }
 
-  closeWriteSocket(): boolean {
-    this.socket.destroy();
-    return true;
-  }
-
-  reconnectWriteSocket(): boolean {
-    this.closeWriteSocket();
-    this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
-    return true;
-  }
-
-  closeListenSocket(): boolean {
-    this.listenSocket.destroy();
-    return true;
-  }
-
-  reconnectListenSocket(): boolean {
-    this.closeListenSocket();
-    this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
-    return true;
-  }
-
   updateStorage(device: IYeeDevice, wipe = false): boolean {
     if (wipe) {
       if (!device.ip || !device.id) {
-        throw new TypeError('[yee-ts]: wiping storage without provided ip and id is not possible.');
+        throw new TypeError('[yee-ts]: Wiping storage without provided ip and id is not possible.');
       }
 
       this.device = device;
@@ -222,6 +172,14 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     }
 
     return true;
+  }
+
+  updateParams(params: IDeviceParams): IDeviceParams {
+    for (const key in params) {
+      this.params[key] = params[key];
+    }
+
+    return this.params;
   }
 
 
