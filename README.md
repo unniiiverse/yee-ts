@@ -58,8 +58,8 @@ new Yeelight().createDevice(id: string, storage?: Storage, params?: IDeviceParam
 ```ts
 const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: 5000,
-  writeSocketPort: 55439,
-  listenSocketPort: 55429,
+  writeSocketPort: 55439, // For reconnect it uses this port - 1
+  listenSocketPort: 55429, // For reconnect it uses this port - 1
   defaultEffect: 'smooth',
   effectDuration: 300,
   defaultMode: 0,
@@ -109,5 +109,5 @@ npm i yee-ts
 <hr>
 
 License: MIT <br>
-Last update: 1.3.4<br>
+Last update: 1.3.5<br>
 unniiiverse 2023 

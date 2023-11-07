@@ -194,12 +194,6 @@ describe('Device', () => {
       });
     });
 
-    test('turn on (already on)', async () => {
-      expect(await device.turn_on({
-        isTest: true
-      })).toBe(true);
-    });
-
     test('turn off (success)', async () => {
       expect(await device.turn_off({
         isTest: true

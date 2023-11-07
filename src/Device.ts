@@ -59,6 +59,9 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       this.params[key] = params[key];
     }
 
+    let thisWriteSocketPort = this.params.writeSocketPort;
+    let thisListenSocketPort = this.params.listenSocketPort;
+
     this.device = device;
     this.device.id = id;
 
@@ -67,6 +70,24 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
 
     this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
+
+    this.socket.on('close', () => {
+      this.socket.end();
+
+      setTimeout(() => {
+        this.socket = this._createSocket(thisWriteSocketPort === this.params.writeSocketPort! ? this.params.writeSocketPort! - 1 : this.params.writeSocketPort!);
+        thisWriteSocketPort = this.params.writeSocketPort! - 1;
+      }, 5000);
+    });
+
+    this.listenSocket.on('close', () => {
+      this.listenSocket.end();
+
+      setTimeout(() => {
+        this.listenSocket = this._createSocket(thisListenSocketPort === this.params.listenSocketPort! ? this.params.listenSocketPort! - 1 : this.params.listenSocketPort!);
+        thisListenSocketPort = this.params.listenSocketPort! - 1;
+      }, 5000);
+    });
 
     this._listenSocket();
   }
@@ -155,6 +176,8 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       localAddress: this.params.localIP,
       localPort: port,
       timeout,
+      keepAlive: true,
+      noDelay: true
     });
   }
 
@@ -274,7 +297,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       if (!isTest && !this.params.isTest) {
         console.log('[yee-ts]: power is already on');
       }
-      return true;
     }
 
     effect = effect || this.params.defaultEffect;
@@ -295,7 +317,6 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       if (!isTest || !this.params.isTest) {
         console.log('[yee-ts]: power is already off');
       }
-      return true;
     }
 
     effect = effect || this.params.defaultEffect;
