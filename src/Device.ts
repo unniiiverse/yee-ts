@@ -25,6 +25,11 @@ interface IDeviceEmitter {
   response: (data: { method: string, params: { [attr: string]: any } }, device: IYeeDevice) => void
 }
 
+interface IDevicePorts {
+  write: number,
+  listen: number
+}
+
 const socketDefaultTimeout = 5000;
 
 const deviceDefaultParams: IDeviceParams = {
@@ -45,6 +50,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   private socket: net.Socket;
   private listenSocket: net.Socket;
   private params: IDeviceParams = deviceDefaultParams;
+  private ports: IDevicePorts;
 
   constructor(id: string, storage: Storage, params?: IDeviceParams) {
     super();
@@ -59,11 +65,10 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       this.params[key] = params[key];
     }
 
-    let thisWriteSocketPort = this.params.writeSocketPort;
-    let thisListenSocketPort = this.params.listenSocketPort;
-
     this.device = device;
     this.device.id = id;
+
+    this.ports = { listen: this.params.listenSocketPort!, write: this.params.writeSocketPort! };
 
     //* Create sockets
     this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
@@ -75,8 +80,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       this.socket.end();
 
       setTimeout(() => {
-        this.socket = this._createSocket(thisWriteSocketPort === this.params.writeSocketPort! ? this.params.writeSocketPort! - 1 : this.params.writeSocketPort!);
-        thisWriteSocketPort = this.params.writeSocketPort! - 1;
+        this.reconnectWriteSocket();
       }, 5000);
     });
 
@@ -84,8 +88,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       this.listenSocket.end();
 
       setTimeout(() => {
-        this.listenSocket = this._createSocket(thisListenSocketPort === this.params.listenSocketPort! ? this.params.listenSocketPort! - 1 : this.params.listenSocketPort!);
-        thisListenSocketPort = this.params.listenSocketPort! - 1;
+        this.reconnectListenSocket();
       }, 5000);
     });
 
@@ -179,6 +182,32 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       keepAlive: true,
       noDelay: true
     });
+  }
+
+  closeListenSocket(): boolean {
+    this.listenSocket.destroy();
+    return this.listenSocket.destroyed;
+  }
+
+  closeWriteSocket(): boolean {
+    this.socket.destroy();
+    return this.socket.destroyed;
+  }
+
+  reconnectWriteSocket(): boolean {
+    if (isDev) console.log(`[yee-ts <DEV>]: Write socket reconnected.`);
+
+    this.closeWriteSocket();
+    this.socket = this._createSocket(this.ports.write === 0 ? 0 : this.params.writeSocketPort ? this.ports.write -= 1 : this.ports.write += 1, this.params.writeTimeoutMs);
+    return true;
+  }
+
+  reconnectListenSocket(): boolean {
+    if (isDev) console.log(`[yee-ts <DEV>]: Listen socket reconnected.`);
+
+    this.closeListenSocket();
+    this.listenSocket = this._createSocket(this.ports.listen === 0 ? 0 : this.params.listenSocketPort ? this.ports.listen -= 1 : this.ports.listen += 1, socketDefaultTimeout);
+    return true;
   }
 
   updateStorage(device: IYeeDevice, wipe = false): boolean {
