@@ -3,22 +3,25 @@
 import Storage from './Storage';
 import { IYeeDevice, TYeeDeviceProps, IColorFlow, TDeviceEffect } from './interfaces';
 import net from 'node:net';
-import { isDev } from './config';
+import { isDev as isDevCMD } from './config';
 import { TypedEmitter } from 'tiny-typed-emitter';
 import * as handler from './deviceHandlers';
 import ip from 'ip';
 
+let isDev = isDevCMD;
 type TDevicePowerModes = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface IDeviceParams {
   writeTimeoutMs?: number,
   writeSocketPort?: number,
   listenSocketPort?: number,
+  listenSocketTimeout?: number,
   defaultEffect?: TDeviceEffect,
   effectDuration?: number,
   defaultMode?: TDevicePowerModes,
   isTest?: boolean,
-  localIP?: string
+  localIP?: string,
+  devCMD?: boolean
 }
 
 interface IDeviceEmitter {
@@ -34,13 +37,15 @@ const socketDefaultTimeout = 5000;
 
 const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: socketDefaultTimeout,
+  listenSocketTimeout: 3600000,
   writeSocketPort: 55439,
   listenSocketPort: 55429,
   defaultEffect: 'smooth',
   effectDuration: 300,
   defaultMode: 0,
   isTest: false,
-  localIP: ip.address('public', 'ipv4')
+  localIP: ip.address('public', 'ipv4'),
+  devCMD: false
 };
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
@@ -67,29 +72,29 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
     this.device = device;
     this.device.id = id;
+    isDev = this.params.devCMD!;
 
     this.ports = { listen: this.params.listenSocketPort!, write: this.params.writeSocketPort! };
 
     //* Create sockets
     this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
-    this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.writeTimeoutMs);
+    this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.listenSocketTimeout);
 
     this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
 
     this.socket.on('close', () => {
       this.socket.end();
-
-      setTimeout(() => {
-        this.reconnectWriteSocket();
-      }, 5000);
+      this.reconnectWriteSocket();
     });
 
     this.listenSocket.on('close', () => {
       this.listenSocket.end();
+      this.reconnectListenSocket();
+    });
 
-      setTimeout(() => {
-        this.reconnectListenSocket();
-      }, 5000);
+    this.listenSocket.on('timeout', () => {
+      this.listenSocket.end();
+      this.reconnectListenSocket();
     });
 
     this._listenSocket();
@@ -206,7 +211,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     if (isDev) console.log(`[yee-ts <DEV>]: Listen socket reconnected.`);
 
     this.closeListenSocket();
-    this.listenSocket = this._createSocket(this.ports.listen === 0 ? 0 : this.params.listenSocketPort ? this.ports.listen -= 1 : this.ports.listen += 1, socketDefaultTimeout);
+    this.listenSocket = this._createSocket(this.ports.listen === 0 ? 0 : this.params.listenSocketPort ? this.ports.listen -= 1 : this.ports.listen += 1, this.params.listenSocketTimeout);
     return true;
   }
 

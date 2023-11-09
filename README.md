@@ -64,10 +64,11 @@ const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: 5000,
   writeSocketPort: 55439, // For reconnect it uses this port - 1
   listenSocketPort: 55429, // For reconnect it uses this port - 1
+  listenSocketTimeout: 3600000
   defaultEffect: 'smooth',
   effectDuration: 300,
   defaultMode: 0,
-  isTest: false,
+  devCMD: false,
   localIP: '192.168.0.1' // set the public ipv4 ip
 };
 ```
