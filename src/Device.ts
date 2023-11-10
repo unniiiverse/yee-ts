@@ -185,7 +185,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       localPort: port,
       timeout,
       keepAlive: true,
-      noDelay: true
+      keepAliveInitialDelay: 60000,
     });
   }
 
