@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any*/
 
 import Storage from './Storage';
 import { IYeeDevice, TYeeDeviceProps, IColorFlow, TDeviceEffect } from './interfaces';
@@ -21,7 +21,8 @@ export interface IDeviceParams {
   defaultMode?: TDevicePowerModes,
   isTest?: boolean,
   localIP?: string,
-  devCMD?: boolean
+  devCMD?: boolean,
+  forceTurnOn?: boolean
 }
 
 interface IDeviceEmitter {
@@ -37,7 +38,7 @@ const socketDefaultTimeout = 5000;
 
 const deviceDefaultParams: IDeviceParams = {
   writeTimeoutMs: socketDefaultTimeout,
-  listenSocketTimeout: 3600000,
+  listenSocketTimeout: 1800000,
   writeSocketPort: 55439,
   listenSocketPort: 55429,
   defaultEffect: 'smooth',
@@ -45,7 +46,8 @@ const deviceDefaultParams: IDeviceParams = {
   defaultMode: 0,
   isTest: false,
   localIP: ip.address('public', 'ipv4'),
-  devCMD: false
+  devCMD: false,
+  forceTurnOn: false
 };
 
 export class Device extends TypedEmitter<IDeviceEmitter> {
@@ -80,24 +82,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     this.socket = this._createSocket(this.params.writeSocketPort!, this.params.writeTimeoutMs);
     this.listenSocket = this._createSocket(this.params.listenSocketPort!, this.params.listenSocketTimeout);
 
-    this.listenSocket.on('error', e => { throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`); });
-
-    this.socket.on('close', () => {
-      this.socket.end();
-      this.reconnectWriteSocket();
-    });
-
-    this.listenSocket.on('close', () => {
-      this.listenSocket.end();
-      this.reconnectListenSocket();
-    });
-
-    this.listenSocket.on('timeout', () => {
-      this.listenSocket.end();
-      this.reconnectListenSocket();
-    });
-
-    this._listenSocket();
+    this._socketsUpdate();
   }
 
   private async _sendCommand(command: { method: string, params: any }): Promise<boolean> {
@@ -134,47 +119,78 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
   }
 
-  private _ensurePower(val: boolean) {
+  private async _ensurePower(val: boolean) {
     if (this.device.power !== val) {
+      if (this.params.forceTurnOn) {
+        return await this.turn_on({});
+      }
+
       throw new TypeError(`[yee-ts]: Device must be ${val ? 'on' : 'off'}.`);
     }
   }
 
-  private _listenSocket() {
-    try {
-      this.listenSocket.on('data', payload => {
-        const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+  private _socketsUpdate(ignoreFirstClosed = true) {
+    let isFirst = true;
 
-        for (const key in data.params) {
-          this.device[key] = data.params[key];
-        }
+    this.socket.on('close', () => {
+      if (isFirst && ignoreFirstClosed) {
+        return;
+      }
 
-        // Rewrite auto field
-        if (data.params.power === 'on') {
-          this.device.power = true;
-        } else if (data.params.power === 'off') {
-          this.device.power = false;
-        }
+      this.reconnectWriteSocket();
+      isFirst = false;
+    });
 
-        if (data.params.flowing || data.params.flow_params) {
-          this.device.flowing = true;
-        } else {
-          this.device.flowing = false;
-        }
+    this.socket.on('error', e => {
+      throw new Error(`[yee-ts]: Write socket thrown an error: ${JSON.stringify(e)}`);
+    });
 
-        this.emit('response', data, this.device);
 
-        if (isDev) {
-          console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
-        }
-      });
 
-      this.listenSocket.on('error', async e => {
-        throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
-      });
-    } catch (e) {
-      throw new Error(`[yee-ts]: Listen socket error: ${JSON.stringify(e)}`);
-    }
+    this.listenSocket.on('close', () => {
+      if (isFirst && ignoreFirstClosed) {
+        return;
+      }
+
+      this.reconnectListenSocket();
+      isFirst = false;
+    });
+
+    this.listenSocket.on('error', e => {
+      throw new Error(`[yee-ts]: Listen socket thrown an error: ${JSON.stringify(e)}`);
+    });
+
+    this.listenSocket.on('timeout', () => {
+      if (isDev) console.log(`[yee-ts <DEV>]: Listen socket timeouted.`);
+      this.reconnectListenSocket();
+    });
+
+    this.listenSocket.on('data', payload => {
+      const data: { method: string, params: { [attr: string]: any } } = JSON.parse(payload.toString());
+
+      for (const key in data.params) {
+        this.device[key] = data.params[key];
+      }
+
+      // Rewrite auto field
+      if (data.params.power === 'on') {
+        this.device.power = true;
+      } else if (data.params.power === 'off') {
+        this.device.power = false;
+      }
+
+      if (data.params.flowing || data.params.flow_params) {
+        this.device.flowing = true;
+      } else {
+        this.device.flowing = false;
+      }
+
+      this.emit('response', data, this.device);
+
+      if (isDev) {
+        console.log(`[yee-ts <DEV>]: Response message: ${payload.toString()}`);
+      }
+    });
   }
 
   private _createSocket(port: number, timeout = socketDefaultTimeout) {
@@ -185,34 +201,40 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       localPort: port,
       timeout,
       keepAlive: true,
-      keepAliveInitialDelay: 60000,
+      keepAliveInitialDelay: 60000
     });
   }
 
-  closeListenSocket(): boolean {
-    this.listenSocket.destroy();
-    return this.listenSocket.destroyed;
-  }
-
   closeWriteSocket(): boolean {
+    if (this.socket.destroyed) return true;
+    if (isDev) console.log(`[yee-ts <DEV>]: Write socket closed.`);
     this.socket.destroy();
     return this.socket.destroyed;
   }
 
   reconnectWriteSocket(): boolean {
+    if (!this.socket.destroyed) this.closeWriteSocket();
     if (isDev) console.log(`[yee-ts <DEV>]: Write socket reconnected.`);
-
-    this.closeWriteSocket();
     this.socket = this._createSocket(this.ports.write === 0 ? 0 : this.params.writeSocketPort ? this.ports.write -= 1 : this.ports.write += 1, this.params.writeTimeoutMs);
-    return true;
+    this._socketsUpdate();
+
+    return !this.socket.destroyed;
+  }
+
+  closeListenSocket(): boolean {
+    if (this.listenSocket.destroyed) return true;
+    if (isDev) console.log(`[yee-ts <DEV>]: Listen socket closed.`);
+    this.listenSocket.destroy();
+    return this.listenSocket.destroyed;
   }
 
   reconnectListenSocket(): boolean {
+    if (!this.listenSocket.destroyed) this.closeListenSocket();
     if (isDev) console.log(`[yee-ts <DEV>]: Listen socket reconnected.`);
-
-    this.closeListenSocket();
     this.listenSocket = this._createSocket(this.ports.listen === 0 ? 0 : this.params.listenSocketPort ? this.ports.listen -= 1 : this.ports.listen += 1, this.params.listenSocketTimeout);
-    return true;
+    this._socketsUpdate();
+
+    return !this.listenSocket.destroyed;
   }
 
   updateStorage(device: IYeeDevice, wipe = false): boolean {
@@ -253,7 +275,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async set_ct_abx({ ct, duration, effect, isBg, isTest }: IDeviceSetCtAbx) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
     handler.ctCheckRange(ct);
 
     effect = effect || this.params.defaultEffect;
@@ -269,7 +291,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async set_rgb({ full, r, g, b, effect, duration, isBg, isTest }: IDeviceSetRgb) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
 
     effect = effect || this.params.defaultEffect;
     duration = duration || this.params.effectDuration;
@@ -296,7 +318,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async set_hsv({ hue, sat, effect, duration, isBg, isTest }: IDeviceSetHsv) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
 
     effect = effect || this.params.defaultEffect;
     duration = duration || this.params.effectDuration;
@@ -311,7 +333,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async set_bright({ bright, effect, duration, isBg, isTest }: IDeviceSetBright) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
     handler.brightCheckRange(bright);
 
     effect = effect || this.params.defaultEffect;
@@ -377,7 +399,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async set_default({ isBg, isTest }: IDeviceDefault) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
 
     const payload = { method: `${isBg ? 'bg_' : ''}set_default`, params: [] };
 
@@ -389,7 +411,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async start_cf({ action, flow, repeat, isBg, isTest }: IDeviceStartCf) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
 
     if (!Array.isArray(flow)) {
       const payload = { method: 'start_cf', params: [repeat, action, flow] };
@@ -509,7 +531,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   async cron_add({ isBg, isTest, delayMins, type }: IDeviceCronAdd) {
-    this._ensurePower(true);
+    await this._ensurePower(true);
     const payload = { method: `cron_add`, params: [type, delayMins] };
 
     if (isTest) {
