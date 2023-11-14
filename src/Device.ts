@@ -142,7 +142,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
 
     this.socket.on('error', e => {
-      throw new Error(`[yee-ts]: Write socket thrown an error: ${JSON.stringify(e)}`);
+      throw new Error(`[yee-ts]: Write socket thrown an error: ${e}`);
     });
 
 
@@ -157,7 +157,13 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
 
     this.listenSocket.on('error', e => {
-      throw new Error(`[yee-ts]: Listen socket thrown an error: ${JSON.stringify(e)}`);
+      // @ts-expect-error TS don`t know the e interface
+      if (e.errno === -104) {
+        if (isDev) { console.log(`[yee-ts <DEV>]: Listen socket throw -104 error. Reconnecting...`); }
+        return this.reconnectListenSocket();
+      }
+
+      throw new Error(`[yee-ts]: Listen socket thrown an error: ${e}`);
     });
 
     this.listenSocket.on('timeout', () => {
