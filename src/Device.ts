@@ -142,6 +142,12 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
     });
 
     this.socket.on('error', e => {
+      // @ts-expect-error TS don`t know the e interface
+      if (e.errno === -104 || -110) {
+        if (isDev) { console.log(`[yee-ts <DEV>]: Write socket throw -104 or -110 error. Reconnecting...`); }
+        return this.reconnectListenSocket();
+      }
+
       throw new Error(`[yee-ts]: Write socket thrown an error: ${e}`);
     });
 
