@@ -130,15 +130,16 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
   }
 
   private _socketsUpdate(ignoreFirstClosed = true) {
-    let isFirst = true;
+    let isFirstListen = true;
+    let isFirstWrite = true;
 
     this.socket.on('close', () => {
-      if (isFirst && ignoreFirstClosed) {
+      if (isFirstWrite && ignoreFirstClosed) {
         return;
       }
 
       this.reconnectWriteSocket();
-      isFirst = false;
+      isFirstWrite = false;
     });
 
     this.socket.on('error', e => {
@@ -154,12 +155,12 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
 
 
     this.listenSocket.on('close', () => {
-      if (isFirst && ignoreFirstClosed) {
+      if (isFirstListen && ignoreFirstClosed) {
         return;
       }
 
       this.reconnectListenSocket();
-      isFirst = false;
+      isFirstListen = false;
     });
 
     this.listenSocket.on('error', e => {
