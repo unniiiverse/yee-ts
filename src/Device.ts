@@ -91,10 +91,9 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       const payload = `${JSON.stringify({ id: this.cmdId, ...command })}\r\n`;
 
       if (this.socket.destroyed) {
-        throw new Error('[yee-ts]: Write socket closed.');
+        this.reconnectWriteSocket();
       }
 
-      this.socket.on('error', e => reject(`[yee-ts]: Write socket error: ${JSON.stringify(e)}`));
       this.socket.on('timeout', () => reject(`[yee-ts]: Write socket timeouted ${this.params.writeTimeoutMs}ms.`));
 
       // Wait till socket will be open
@@ -146,7 +145,7 @@ export class Device extends TypedEmitter<IDeviceEmitter> {
       // @ts-expect-error TS don`t know the e interface
       if (e.errno === -104 || -110) {
         if (isDev) { console.log(`[yee-ts <DEV>]: Write socket throw -104 or -110 error. Reconnecting...`); }
-        return this.reconnectListenSocket();
+        return this.reconnectWriteSocket();
       }
 
       throw new Error(`[yee-ts]: Write socket thrown an error: ${e}`);
